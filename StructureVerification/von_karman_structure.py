@@ -116,14 +116,14 @@ elif implementation == "3":
     J_ = det(F_)
 
     #WORKING BUT WITH DAMPING
-    #G = ( J_*rho_s/k*inner(w - w0, psi) + J_*rho_s*inner(dot(grad(w), w), psi) \
-    #+ inner(Venant_Kirchhof(d), grad(psi)) - J_*inner(g, psi) ) * dx \
-    #+ inner((d - d0) + k*dot(grad(d), w) - k*w, phi) * dx
+    G = ( J_*rho_s/k*inner(w - w0, psi) + J_*rho_s*inner(dot(grad(w), w), psi) \
+    + inner(Venant_Kirchhof(d), grad(psi)) - J_*inner(g, psi) ) * dx \
+    + inner((d - d0) + k*dot(grad(d), w) - k*w, phi) * dx
 
     #Cranc Nic some
-    G = ( J_*rho_s/k*inner(w - w0, psi) + J_*rho_s*inner(dot(grad(0.5*(w+w0)), 0.5*(w + w0)), psi) \
-    + inner(Venant_Kirchhof(0.5*(d + d0)), grad(psi)) - J_*inner(g, psi) ) * dx \
-    + inner(d - d0 + k*dot(grad(d), w) - k*w0 , phi) * dx
+    #G = ( J_*rho_s/k*inner(w - w0, psi) + J_*rho_s*inner(dot(grad(0.5*(w+w0)), 0.5*(w + w0)), psi) \
+    #+ inner(Venant_Kirchhof(0.5*(d + d0)), grad(psi)) - J_*inner(g, psi) ) * dx \
+    #+ inner(d - d0 + k*dot(grad(d), w) - k*w0 , phi) * dx
 
     #First order frac-step
     # solving for n + 1/2
@@ -136,77 +136,6 @@ elif implementation == "3":
     + inner(Venant_Kirchhof(d), grad(psi)) - J_*insner(g, psi) ) * dx \
     + inner((d - d0) + k/2*dot(grad(d), w) - k/2*w, phi) * dx
     """
-
-#Newmark method with gamma = 0.5
-elif implementation == "4":
-
-    bc1 = DirichletBC(VV.sub(0), ((0,0)),boundaries, 1)
-    bc2 = DirichletBC(VV.sub(1), ((0,0)),boundaries, 1)
-    bcs = [bc1,bc2]
-    psi, phi = TestFunctions(VV)
-    wd = Function(VV)
-    w, d = split(wd)
-    w0d0 = Function(VV)
-    w0, d0 = split(w0d0)
-    d_disp = Function(V)
-
-    beta = 0.25
-
-    I = Identity(2)
-    F_ = I - grad(d) #d here must be the same as in variational formula
-    J_ = det(F_)
-
-    def forces(d):
-        return - J_*dot(grad(d*k), d*k) + div(Venant_Kirchhof(d)) + J_*g
-
-    def forces2(d):
-        return - dot(grad(d*k), d*k) + div(Venant_Kirchhof(d)) + g
-
-    G = inner(J_*w - J_*w0 - k/2.*(forces(d) + forces(d0) ), psi)*dx  \
-    +  inner(d - d0 - k*w0 - (1 - 2*beta)/2.*k*k*forces2(d0) - beta*k*k*forces2(d), phi)*dx
-
-
-#THIS implementation gives small damping effect for low dt = 0.001
-elif implementation == "5":
-    bc1 = DirichletBC(VV.sub(0), ((0,0)),boundaries, 1)
-    bc2 = DirichletBC(VV.sub(1), ((0,0)),boundaries, 1)
-    bcs = [bc1,bc2]
-    w  = TrialFunction(V)
-    psi = TestFunction(V)
-    w1 = Function(V); w0 = Function(V)
-    w_ = Function(V) # FOR SOLVER
-    d0 = Function(V)
-    #d = d0 + k*w
-    # WORKING CODE
-    #G = rho_s*1./k*inner(w-w1,psi)*dx + rho_s*inner(dot(grad(w0), w ),psi)*dx \
-    #+ inner(sigma_structure(d), grad(psi))*dx - inner(g,psi)*dx
-    d = k*w
-    G = rho_s*1./k*inner(w - w1, psi)*dx + rho_s*inner(dot(grad(w0), 0.5*(w0 + w)), psi)*dx \
-    + inner(sigma_structure(0.5*(d + d0)), grad(psi))*dx - inner(g,psi)*dx
-    a = lhs(G); L = rhs(G)
-
-elif implementation == "6":
-    bc1 = DirichletBC(VV.sub(0), ((0,0)),boundaries, 1)
-    bc2 = DirichletBC(VV.sub(1), ((0,0)),boundaries, 1)
-    bcw = [bc1]
-    bcd = [bc2]
-    wd  = TrialFunction(VV)
-    w, d = split(wd)
-    psi, eta = TestFunctions(VV)
-
-    w0 = Function(V)
-    d0 = Function(V)
-    wd_ = Function(VV)
-
-    #Newton
-    w = Function(V)
-    d = d0 + w*k
-    #d = w*k #for d^n+0.5 in tensor argument
-
-    G =rho_s*((1./k)*inner(w-w0,psi))*dx + rho_s*inner(dot(grad(0.5*(w+w0)),0.5*(w+w0)),psi)*dx \
-    + inner(Cauchy(0.5*(d+d0)),grad(psi))*dx \
-    - inner(g,psi)*dx - dot(d-d0,phi)*dx + k*dot(0.5*(w+w0),phi)*dx
-
 
 dis_x = []
 dis_y = []
@@ -272,39 +201,6 @@ while t < T:
         ALE.move(mesh, d_disp)
         mesh.bounding_box_tree().build(mesh)
 
-    if implementation == "5":
-        b = assemble(L)
-        eps = 10
-        k_iter = 0
-        max_iter = 20
-        while eps > 1E-6 and k_iter < max_iter:
-            A = assemble(a)
-            A.ident_zeros()
-            [bc.apply(A,b) for bc in bcs]
-            solve(A, w_.vector(), b, "cg", "hypre_amg")
-            eps = errornorm(w_, w0,degree_rise=3)
-            k_iter += 1
-            print 'k: ',k_iter, 'error: %.3e' %eps
-            w0.assign(w_)
-        #if count % 10 == 0:
-        #    dis_5 << d0
-        dis_5 << d0
-        w1.assign(w_)
-        w_.vector()[:] *= float(k)
-        d0.vector()[:] += w_.vector()[:]
-        ALE.move(mesh, w_)
-        mesh.bounding_box_tree().build(mesh)
-
-    if implementation == "6":
-        solve(G == 0, wd, bcs, solver_parameters={"newton_solver": \
-        {"relative_tolerance": 1E-9,"absolute_tolerance":1E-9,"maximum_iterations":100,"relaxation_parameter":1.0}})
-        w_, d_ = wd.split(True)
-        dis_6 << d0
-        w0.assign(w)
-        w.vector()[:] *= float(k)
-        d0.vector()[:] += w.vector()[:]
-        ALE.move(mesh, w)
-        mesh.bounding_box_tree().build(mesh)
 
     count += 1
     t += dt
@@ -316,7 +212,7 @@ if implementation == "1":
 elif implementation == "2":
     title = plt.title("Double space")
 elif implementation == "3":
-    #title = plt.title("Single space solving w")
+    title = plt.title("Single space solving w")
     sys.exit(0)
 elif implementation == "4":
     sys.exit(0)
