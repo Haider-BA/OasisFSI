@@ -1,6 +1,6 @@
 {
   "name": "Oasisfsi",
   "tagline": "Framework for FSI",
-  "body": "Test est",
+  "body": "OasisFSI is a repository created to develop solvers for Fluid Structure Interaction or FSI. \r\n\r\n#Phase 1: Develop a fully coupled monolithic solver\r\nWe want ",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
