@@ -1,6 +1,6 @@
 {
   "name": "Oasisfsi",
   "tagline": "Framework for FSI",
-  "body": "OasisFSI is a repository created to develop solvers for Fluid Structure Interaction or FSI. \r\n\r\n#Phase 1: Develop a fully coupled monolithic solver\r\nWe want ",
+  "body": "OasisFSI is a repository created to develop solvers for Fluid Structure Interaction or FSI. \r\n\r\n#Phase 1: Develop a fully coupled monolithic solver\r\nFirst phase is to make a consistent solver which will yield accurate results at the cost of speed. For\r\nverification of implementation we will use [Turek]http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.550.1689&rep=rep1&type=pdf as reference\r\n",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
