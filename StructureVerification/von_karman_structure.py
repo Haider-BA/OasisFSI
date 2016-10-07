@@ -133,10 +133,11 @@ elif implementation == "4":
         w0, d0 = split(w0d0)
         d_disp = Function(V)
 
-        #Full CrancNic Diverge after 2 period
         I = Identity(2)
         F_ = I - grad(0.5*(d+d0)) #d here must be the same as in variational formula
         J_ = det(F_)
+        #F_1 = I - grad(d) #
+        #J_1 = det(F_1)
 
         ### TEST CODE
         G = ( J_*rho_s/k*inner(w - w0, psi) + J_*rho_s*inner(dot(grad(0.5*(w+w0)), 0.5*(w + w0)), psi) \
@@ -162,7 +163,7 @@ elif implementation == "4":
         # FULL CRAC DIVERGES,
         #G = ( J_*rho_s/k*inner(w - w0, psi) + J_*rho_s*inner(dot(grad(0.5*(w+w0)), 0.5*(w + w0)), psi) \
         #+ inner(0.5*(Venant_Kirchhof(d) + Venant_Kirchhof(d0)), grad(psi)) - J_*inner(g, psi) ) * dx \
-        #+ inner(d - d0 + k*dot(grad(0.5*(d+d0)), 0.5*(w+w0)) - k*0.5*(w+w0) , phi) * dx
+        #+ inner(d - d0 + k*dot(grad(d), w) - k*0.5*(w+w0) , phi) * dx
 
 
 #Full Eulerian description Forward Euler
@@ -265,11 +266,16 @@ while t < T:
     elif implementation == "4":
         solve(G == 0, wd, bcs, solver_parameters={"newton_solver": \
         {"relative_tolerance": 1E-9,"absolute_tolerance":1E-9,"maximum_iterations":100,"relaxation_parameter":1.0}})
+        w0,d0 = w0d0.split(True)
+        w,d = wd.split(True)
+        d_disp.vector()[:] = d.vector()[:] - d0.vector()[:]
+
         w0d0.assign(wd)
         w0,d0 = w0d0.split(True)
         dis_x.append(d0(coord)[0])
         dis_y.append(d0(coord)[1])
-        d_disp.vector()[:] = w0.vector()[:]*float(k)
+        #ORGINIAL
+        #d_disp.vector()[:] = w0.vector()[:]*float(k)
         dis_4 << d0
         ALE.move(mesh, d_disp)
         mesh.bounding_box_tree().build(mesh)
