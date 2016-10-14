@@ -23,7 +23,7 @@ D_v1_dt01 = np.loadtxt('./CFD3turek2_dt=0.01_vdeg1/Drag.txt', delimiter=',')
 
 
 
-"""
+
 plt.figure(1)
 
 plt.subplot(222)
@@ -48,7 +48,7 @@ plt.subplot(223)
 plt.axis([15, 16, 429, 438])
 plt.title("Dragforce ")
 plt.plot(time_, Drag_)
-"""
+
 
 plt.figure(2)
 
