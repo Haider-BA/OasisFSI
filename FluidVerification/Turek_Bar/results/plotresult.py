@@ -8,9 +8,10 @@ time = np.loadtxt('./CFD3turek2/time.txt', delimiter=',')
 Lift = np.loadtxt('./CFD3turek2/Lift.txt', delimiter=',')
 Drag = np.loadtxt('./CFD3turek2/Drag.txt', delimiter=',')
 
-time_ = np.loadtxt('./CFD3turek1/time.txt', delimiter=',')
-Lift_ = np.loadtxt('./CFD3turek1/Lift.txt', delimiter=',')
-Drag_ = np.loadtxt('./CFD3turek1/Drag.txt', delimiter=',')
+time_ = np.loadtxt('./CFD3turek1_dt=0.001_vdeg=2/time.txt', delimiter=',')
+Lift_ = np.loadtxt('./CFD3turek1_dt=0.001_vdeg=2
+/Lift.txt', delimiter=',')
+Drag_ = np.loadtxt('./CFD3turek1_dt=0.001_vdeg=2/Drag.txt', delimiter=',')
 
 
 t_ = np.loadtxt('./CFD3turek2_dt=0.01_vdeg2/time.txt', delimiter=',')

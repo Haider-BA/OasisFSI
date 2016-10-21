@@ -12,7 +12,7 @@ V1 = VectorFunctionSpace(mesh, "CG", 2) # Velocity
 V2 = VectorFunctionSpace(mesh, "CG", 1) # Structure deformation
 Q  = FunctionSpace(mesh, "CG", 1)       # Fluid Pressure
 
-VVQ = MixedFunctionSpace([V1,V2,Q])
+VVQ = MixedFunctionSpace([V1,V2,V3,Q])
 
 # BOUNDARIES
 
@@ -35,8 +35,6 @@ Outlet.mark(boundaries, 4)
 Bar.mark(boundaries, 5)
 Circle.mark(boundaries, 6)
 Barwall.mark(boundaries, 7)
-#test = File("Facet.pvd")
-#test << boundaries
 #plot(boundaries,interactive=True)
 
 
@@ -64,14 +62,22 @@ u_wall   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
 u_circ   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
 
+#Mesh velocity conditions
+w_wall    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 2)
+w_inlet   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 3)
+w_outlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 4)
+w_cirlce  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 6)
+w_barwall = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 7)
+
 #Deformation conditions
-d_barwall = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 7)
+d_barwall = DirichletBC(VVQ.sub(2), ((0, 0)), boundaries, 7)
 
 #Pressure Conditions
-p_out = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
+p_out = DirichletBC(VVQ.sub(3), 0, boundaries, 4)
 
 #Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
+       w_inlet, w_wall, w_cirlce, w_outlet, w_barwall, \
        d_barwall]
 # AREAS
 
@@ -85,13 +91,13 @@ plot(domains,interactive = True)
 
 
 # TEST TRIAL FUNCTIONS
-psi, gamma, eta = TestFunctions(VVQ)
+phi, psi, gamma, eta = TestFunctions(VVQ)
 #u, w, p = TrialFunctions(VVQ)
-udp = Function(VVQ)
-u, d, p  = split(udp)
-udp0 = Function(VVQ)
-u0, d0, p0  = split(udp0)
-d_disp = Function(V2)
+uwdp = Function(VVQ)
+u, w, d, p  = split(uwdp)
+uwdp0 = Function(VVQ)
+u0, w0, d0, p0  = split(uwdp0)
+d_disp = Function(V3)
 #u1 = Function(V1) Piccard
 
 #EkPa = '62500
@@ -130,8 +136,8 @@ def sigma_f(p, u):
 
 
 # Fluid variational form
-Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx + rho_f*inner(grad(u)*u, psi)*dx+ \
-    inner(sigma_f(p, u), grad(psi))*dx
+Fluid_momentum = (rho_f/k)*inner(u - u0, phi)*dx + rho_f*inner(grad(u)*u, phi)*dx+ \
+    inner(sigma_f(p, u), grad(phi))*dx
 
 Fluid_continuity = eta*div(u)*dx
 
@@ -150,15 +156,15 @@ Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
     - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2)
 
 Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
-    - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
+    - k*(theta*w + (1 -theta)*u0 ), gamma)  * dx(2)
 
 # Mesh velocity function in fluid domain
-d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
+#d_smooth = inner(grad(u),grad(phi))*dx(1) - inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
 
 #u_bind_w = inner(u, gamma)*dx(2) - (w, gamma)*dx(2)
 
 F = Fluid_momentum + Fluid_continuity \
-  + Solid_momentum + Solid_deformation \
+  + Solid_momentum + Solid_deformation
   + d_smooth
 
 """
@@ -195,7 +201,7 @@ while t <= T:
         inlet = inlet_steady;
 
     dw = TrialFunction(VVQ)
-    dF_W = derivative(F, udp, dw)                # Jacobi
+    dF_W = derivative(F, uwdp, dw)                # Jacobi
 
     atol, rtol = 1e-7, 1e-10                    # abs/rel tolerances
     lmbda      = 1.0                            # relaxation parameter
@@ -229,28 +235,25 @@ while t <= T:
         #for bc in bcs_u:
             #bc.apply(a)
 
-        udp.vector()[:] += lmbda*WD_inc.vector()
+        uwdp.vector()[:] += lmbda*WD_inc.vector()
 
         Iter += 1
 
 
     for bc in bcs:
-        bc.apply(udp.vector())
+        bc.apply(uwdp.vector())
 
-    u, d, p  = udp.split(True)
-
-    u0, d0, p0  = udp0.split(True)
-
+    u, w, d, p  = uwdp.split(True)
+    vel_file << w
+    u0, w0, d0, p0  = uwdp0.split(True)
     d_disp.vector()[:] = d.vector()[:] - d0.vector()[:]
     ALE.move(mesh, d_disp)
     mesh.bounding_box_tree().build(mesh)
-    udp0.assign(udp)
+    uwdp0.assign(uwdp)
 
-    vel_file << u
-
-    dis_x.append(d(coord)[0])
-    dis_y.append(d(coord)[1])
-
+    u0, w0, d0, p0  = uwdp0.split(True)
+    dis_x.append(d0(coord)[0])
+    dis_y.append(d0(coord)[1])
 
     t += dt
 

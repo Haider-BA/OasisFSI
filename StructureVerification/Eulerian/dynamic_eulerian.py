@@ -106,7 +106,7 @@ if implementation == "1":
 dis_x = []
 dis_y = []
 time = []
-T = 10.0
+T = 2.0
 t = 0
 #ime = np.linspace(0,T,(T/dt))
 print "time len",len(time)
