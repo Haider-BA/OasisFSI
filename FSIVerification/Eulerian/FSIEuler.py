@@ -65,14 +65,18 @@ u_circ   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
 
 #Deformation conditions
-d_barwall = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 7)
+d_inlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 3)
+d_outlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 4)
+d_wall   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 2)
+d_circ   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+d_barwall = DirichletBC(VVQ.sub(1),((0, 0)), boundaries, 7)
 
 #Pressure Conditions
 p_out = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
 
 #Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
-       d_barwall]
+       d_inlet, d_wall, d_circ, d_barwall, d_outlet]
 # AREAS
 
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
@@ -92,7 +96,7 @@ u, d, p  = split(udp)
 udp0 = Function(VVQ)
 u0, d0, p0  = split(udp0)
 d_disp = Function(V2)
-#u1 = Function(V1) Piccard
+
 
 #EkPa = '62500
 #E = Constant(float(EkPa))
@@ -104,13 +108,13 @@ nu_f = mu_f/rho_f
 
 #Structure properties
 #FSI 2
-rho_s = 1.0E3
-mu_s = 2.0E6
+rho_s = 10.E3
+mu_s = 0.5E6
 nu_s = 0.4
 E_1 = 1.4E6
 lamda = nu_s*2*mu_s/(1-2*nu_s)
 g = Constant((0,-2*rho_s))
-dt = 0.01
+dt = 0.001
 k = Constant(dt)
 
 Re = Um*D/nu_f
@@ -130,10 +134,10 @@ def sigma_f(p, u):
 
 
 # Fluid variational form
-Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx + rho_f*inner(grad(u)*u, psi)*dx+ \
-    inner(sigma_f(p, u), grad(psi))*dx
+Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx(1) + rho_f*inner(grad(u)*u, psi)*dx(1)+ \
+    inner(sigma_f(p, u), grad(psi))*dx(1)
 
-Fluid_continuity = eta*div(u)*dx
+Fluid_continuity = eta*div(u)*dx(1)
 
 #############################
 I = Identity(2)
@@ -141,8 +145,8 @@ F_ = I - grad(d)
 J_ = det(F_)
 F_1 = I - grad(d0)
 J_1 = det(F_1)
-theta = Constant(0.593)
-
+#theta = Constant(0.593)
+theta = Constant(1)
 # Structure Variational form
 Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
     + rho_s*( J_*theta*inner(dot(grad(u), u), psi) + J_1*(1 - theta)*inner(dot(grad(u0), u0), psi) ) \
@@ -161,30 +165,11 @@ F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation \
   + d_smooth
 
-"""
-# Structure Variational form
-Solid_momentum = ( J_*rho_s/k*inner(w - w0, psi) \
-    + rho_s*( J_*theta*inner(dot(grad(w), w), psi) + J_1*(1 - theta)*inner(dot(grad(w0), w0), psi) ) \
-    + inner(J_*theta*Venant_Kirchhof(d) + (1 - theta)*J_1*Venant_Kirchhof(d0) , grad(psi))  \
-    - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2)
-
-Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), w) + (1-theta)*dot(grad(d0), w0) ) \
-    - k*(theta*w + (1 -theta)*w0 ), gamma)  * dx(2)
-
-# Mesh velocity function in fluid domain
-d_smooth = inner(grad(u),grad(phi))*dx(1) - inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
-
-F = Fluid_momentum + Fluid_continuity \
-  + Solid_momentum + Solid_deformation \
-  + d_smooth
-"""
-
-#u_file = File("mvelocity/velocity.pvd")
-#u_file << u0
 t = 0
 T = 10
 time = []; dis_x = []; dis_y = []
 vel_file = File("./velocity/velocity.pvd")
+#vel_file << u0
 while t <= T:
     print "Time %f" % t
     time.append(t)
@@ -192,7 +177,7 @@ while t <= T:
     if t < 2:
         inlet.t = t;
     if t >= 2:
-        inlet = inlet_steady;
+        inlet.t = 2;
 
     dw = TrialFunction(VVQ)
     dF_W = derivative(F, udp, dw)                # Jacobi
@@ -211,11 +196,12 @@ while t <= T:
     #ALTERNATIVE TO USE IDENT_ZEROS()
     a = lhs(dF_W) + lhs(F);
     L = rhs(dF_W) + rhs(F);
-
-
+    ##NEWTON TALK! GOOD SOURCE
+    #https://fenicsproject.org/qa/536/newton-method-programmed-manually
     while rel_res > rtol and Iter < max_it:
         #ALTERNATIVE TO USE IDENT_ZEROS()
-        A = assemble(a); b = assemble(L)
+        #A = assemble(a); b = assemble(L)
+        A, b = assemble_system(dF_W, -F, bcs_u)
         A.ident_zeros()
         [bc.apply(A,b) for bc in bcs_u]
         solve(A,WD_inc.vector(),b)
@@ -225,12 +211,12 @@ while t <= T:
         #solve(A, WD_inc.vector(), b)
         rel_res = norm(WD_inc, 'l2')
 
-        #a = assemble(G)
-        #for bc in bcs_u:
-            #bc.apply(a)
+        #a = assemble(F)
+        for bc in bcs_u:
+            bc.apply(A)
 
         udp.vector()[:] += lmbda*WD_inc.vector()
-
+        print "iteration %d, relative error %.6f" % (Iter, rel_res)
         Iter += 1
 
 
@@ -248,9 +234,8 @@ while t <= T:
 
     vel_file << u
 
-    dis_x.append(d(coord)[0])
-    dis_y.append(d(coord)[1])
-
+    #dis_x.append(d(coord)[0])
+    #dis_y.append(d(coord)[1])
 
     t += dt
 
