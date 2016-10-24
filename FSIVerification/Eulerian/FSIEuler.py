@@ -1,4 +1,6 @@
 from dolfin import *
+parameters['allow_extrapolation']=True
+
 #mesh = Mesh("von_karman_street_FSI_fluid.xml")
 mesh = Mesh("fluid_new.xml")
 #plot(mesh,interactive=True)
@@ -39,9 +41,14 @@ Barwall.mark(boundaries, 7)
 #test << boundaries
 #plot(boundaries,interactive=True)
 
+testinterior = FacetFunction("size_t", mesh)
+testinterior.set_all(0)
+Bar.mark(testinterior, 5)
+
 
 ds = Measure("ds", subdomain_data = boundaries)
-dS = Measure("dS", subdomain_data = boundaries)
+dS = Measure("dS", subdomain_data = testinterior)
+#dS = Measure("dS", subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
 #BOUNDARY CONDITIONS
@@ -159,11 +166,13 @@ Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d
 # Mesh velocity function in fluid domain
 d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
 
-#u_bind_w = inner(u, gamma)*dx(2) - (w, gamma)*dx(2)
-
+#Conservation of dynamics (CHECK SIGNS!!)
+#dynamic = inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) + inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
+#dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
+dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
 F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation \
-  + d_smooth
+  + d_smooth + dynamic
 
 t = 0
 T = 10
@@ -182,7 +191,7 @@ while t <= T:
     dw = TrialFunction(VVQ)
     dF_W = derivative(F, udp, dw)                # Jacobi
 
-    atol, rtol = 1e-7, 1e-10                    # abs/rel tolerances
+    atol, rtol = 1e-7, 1e-6                  # abs/rel tolerances
     lmbda      = 1.0                            # relaxation parameter
     WD_inc      = Function(VVQ)                  # residual
     bcs_u      = []                             # residual is zero on boundary, (Implemented if DiriBC != 0)
@@ -216,7 +225,7 @@ while t <= T:
             bc.apply(A)
 
         udp.vector()[:] += lmbda*WD_inc.vector()
-        print "iteration %d, relative error %.6f" % (Iter, rel_res)
+        print "iteration %d, relative error %g" % (Iter, rel_res)
         Iter += 1
 
 
