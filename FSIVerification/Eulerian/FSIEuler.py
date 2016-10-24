@@ -41,13 +41,9 @@ Barwall.mark(boundaries, 7)
 #test << boundaries
 #plot(boundaries,interactive=True)
 
-testinterior = FacetFunction("size_t", mesh)
-testinterior.set_all(0)
-Bar.mark(testinterior, 5)
-
 
 ds = Measure("ds", subdomain_data = boundaries)
-dS = Measure("dS", subdomain_data = testinterior)
+dS = Measure("dS", subdomain_data = boundaries)
 #dS = Measure("dS", subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
@@ -152,8 +148,8 @@ F_ = I - grad(d)
 J_ = det(F_)
 F_1 = I - grad(d0)
 J_1 = det(F_1)
-#theta = Constant(0.593)
-theta = Constant(1)
+theta = Constant(0.593)
+#theta = Constant(1)
 # Structure Variational form
 Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
     + rho_s*( J_*theta*inner(dot(grad(u), u), psi) + J_1*(1 - theta)*inner(dot(grad(u0), u0), psi) ) \
@@ -170,6 +166,7 @@ d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"
 #dynamic = inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) + inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
 #dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
 dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
+
 F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation \
   + d_smooth + dynamic
