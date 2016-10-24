@@ -81,7 +81,6 @@ if implementation == "1":
     J_1 = det(F_1)
     if solver == "Newton" or "Newton2":
         theta = Constant(0.593)
-        #theta = Constant(0.5)
 
         G = ( J_*rho_s/k*inner(w - w0, psi) \
         + rho_s*( J_*theta*inner(dot(grad(w), w), psi) + J_1*(1 - theta)*inner(dot(grad(w0), w0), psi) ) \
@@ -106,7 +105,7 @@ if implementation == "1":
 dis_x = []
 dis_y = []
 time = []
-T = 2.0
+T = 10.0
 t = 0
 #ime = np.linspace(0,T,(T/dt))
 print "time len",len(time)
@@ -114,6 +113,7 @@ print "time len",len(time)
 from time import sleep
 while t < T:
     time.append(t)
+    print "Solving for solver %s" % solver
     print "Time: ",t
     if implementation == "1":
         #Automated
@@ -135,7 +135,7 @@ while t < T:
             dw = TrialFunction(VV)
             dG_W = derivative(G, wd, dw)                # Jacobi
 
-            atol, rtol = 1e-7, 1e-10                    # abs/rel tolerances
+            atol, rtol = 1e-7, 1e-7                    # abs/rel tolerances
             lmbda      = 1.0                            # relaxation parameter
             WD_inc      = Function(VV)                  # residual
             bcs_u      = []                             # residual is zero on boundary, (Implemented if DiriBC != 0)
@@ -153,9 +153,10 @@ while t < T:
 
             while rel_res > rtol and Iter < max_it:
                 #ALTERNATIVE TO USE IDENT_ZEROS()
-                A = assemble(a); b = assemble(L)
+                #A = assemble(a); b = assemble(L)
+                A, b = assemble_system(dG_W, -G, bcs_u)
                 [bc.apply(A,b) for bc in bcs_u]
-                solve(A,WD_inc.vector(),b)
+                solve(A,WD_inc.vector(), b)
 
                 #WORKS!!
                 #A, b = assemble_system(dG_W, -G, bcs_u)
