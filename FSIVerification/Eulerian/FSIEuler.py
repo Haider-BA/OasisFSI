@@ -41,17 +41,9 @@ Barwall.mark(boundaries, 7)
 #test << boundaries
 #plot(boundaries,interactive=True)
 
-
-ds = Measure("ds", subdomain_data = boundaries)
-dS = Measure("dS", subdomain_data = boundaries)
-#dS = Measure("dS", subdomain_data = boundaries)
-n = FacetNormal(mesh)
-
-#BOUNDARY CONDITIONS
-
-################################################
-
-
+###############################################
+#             BOUNDARY CONDITIONS
+#Geometry dimentions
 Um = 1.0
 H = 0.41
 L = 2.5
@@ -80,7 +72,12 @@ p_out = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
 #Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
        d_inlet, d_wall, d_circ, d_barwall, d_outlet]
-# AREAS
+
+################################################
+#                    AREAS
+ds = Measure("ds", subdomain_data = boundaries)
+dS = Measure("dS", subdomain_data = boundaries)
+n = FacetNormal(mesh)
 
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
 
@@ -160,16 +157,16 @@ Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d
     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
 # Mesh velocity function in fluid domain
-d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
+d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(5)
 
 #Conservation of dynamics (CHECK SIGNS!!)
-#dynamic = inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) + inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
+dynamic = inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
 #dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
-dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
+#dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
 
 F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation \
-  + d_smooth + dynamic
+  + d_smooth #+ dynamic
 
 t = 0
 T = 10
@@ -212,9 +209,6 @@ while t <= T:
         [bc.apply(A,b) for bc in bcs_u]
         solve(A,WD_inc.vector(),b)
 
-        #WORKS!!
-        #A, b = assemble_system(dG_W, -G, bcs_u)
-        #solve(A, WD_inc.vector(), b)
         rel_res = norm(WD_inc, 'l2')
 
         #a = assemble(F)
