@@ -52,7 +52,8 @@ inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2)
 
 #Velocity conditions
 #Fluid
-u_inlet   = DirichletBC(VVQ.sub(0), inlet   , boundaries, 3)
+#u_inlet   = DirichletBC(VVQ.sub(0), inlet   , boundaries, 3)
+u_inlet   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 3)
 u_circ    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
 u_wall    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
 #Structure
@@ -72,7 +73,8 @@ p_out = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
 
 #Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
-      d_barwall]
+       d_inlet, d_wall, d_circ, d_barwall, d_outlet \
+       ,p_out]
 
 ################################################
 #                    AREAS
@@ -156,26 +158,24 @@ Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
 Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
-# Mesh deformation function in fluid domain
-#d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(5)
-
 
 #Conservation of dynamics (CHECK SIGNS!!)
-#dynamic = -inner(Venant_Kirchhof(d("+"))*n("+"), psi("+"))*dS(5) - inner(sigma_f(p, u("-"))*n("-"),psi("-"))*dS(5)
-dynamic = inner(Venant_Kirchhof(d)*n - sigma_f(p, u)*n , psi)*dS(5)
-
+#dynamic = -inner(Venant_Kirchhof(d("+"))*n("+"), psi("+"))*dS(5) - inner(sigma_f(p("-"), u("-"))*n("-"),psi("-"))*dS(5)
+#dynamic = inner(Venant_Kirchhof(d("+"))*n("+") - sigma_f(p("-"), u("-"))*n("+") , psi("+"))*dS(5)
+#dynamic = inner(Venant_Kirchhof(d)*n - sigma_f(p, u*n , psi*dS(5)
 ############################
 #Add all contributions
 
 F = Fluid_momentum + Fluid_continuity + Fluid_deformation\
   + Solid_momentum + Solid_deformation \
-  #+ dynamic
+  + dynamic
 
 t = 0
 T = 10
 time = []; dis_x = []; dis_y = []
 vel_file = File("./velocity/velocity.pvd")
-#vel_file << u0
+u, d, p  = udp.split(True)
+vel_file << u
 while t <= T:
     print "Time %f" % t
     time.append(t)
@@ -214,9 +214,9 @@ while t <= T:
 
         rel_res = norm(WD_inc, 'l2')
 
-        #a = assemble(F)
-        #for bc in bcs_u:
-            #bc.apply(A)
+        a = assemble(F)
+        for bc in bcs_u:
+            bc.apply(A)
         residual = b.norm('l2')
 
         udp.vector()[:] += lmbda*WD_inc.vector()
@@ -235,8 +235,8 @@ while t <= T:
     #CHECK THIS!!!
     # https://fenicsproject.org/qa/2941/how-to-match-function-values-on-boundary
     d_disp.vector()[:] = d.vector()[:] - d0.vector()[:]
-    ALE.move(mesh, d_disp)
-    mesh.bounding_box_tree().build(mesh)
+    #ALE.move(mesh, d_disp)
+    #mesh.bounding_box_tree().build(mesh)
     udp0.assign(udp)
 
     vel_file << u

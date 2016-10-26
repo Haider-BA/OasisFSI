@@ -152,15 +152,10 @@ while t < T:
 
 
             while rel_res > rtol and Iter < max_it:
-                #ALTERNATIVE TO USE IDENT_ZEROS()
-                #A = assemble(a); b = assemble(L)
                 A, b = assemble_system(dG_W, -G, bcs_u)
                 [bc.apply(A,b) for bc in bcs_u]
                 solve(A,WD_inc.vector(), b)
 
-                #WORKS!!
-                #A, b = assemble_system(dG_W, -G, bcs_u)
-                #solve(A, WD_inc.vector(), b)
                 rel_res = norm(WD_inc, 'l2')
 
                 #a = assemble(G)
@@ -168,7 +163,7 @@ while t < T:
                     #bc.apply(a)
 
                 wd.vector()[:] += lmbda*WD_inc.vector()
-
+                print "Newton iteration %d:  r (rel) = %.3e (tol = %.3e) " % (Iter, rel_res, rtol)
                 Iter += 1
 
 

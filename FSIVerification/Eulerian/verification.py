@@ -55,10 +55,10 @@ inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2)
 ,"0"), t = 0.0, Um = Um, H = H)
 
 #velocity conditions
-u_inlet  = DirichletBC(VVQ.sub(0), inlet, boundaries, 3)
-u_wall   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
-u_circ   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
-u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
+#u_inlet  = DirichletBC(VVQ.sub(0), inlet, boundaries, 3)
+#u_wall   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
+#u_circ   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+#u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
 
 
 ds = Measure("ds", subdomain_data = boundaries)
@@ -67,11 +67,37 @@ n = FacetNormal(mesh)
 
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
 
-domains = CellFunction("size_t",mesh)
-domains.set_all(1)
-Bar_area.mark(domains,2) #Overwrites structure domain
-dx = Measure("dx",subdomain_data=domains)
+#domains = CellFunction("size_t",mesh)
+#domains.set_all(1)
+#Bar_area.mark(domains,2) #Overwrites structure domain
+#dx = Measure("dx",subdomain_data=domains)
 #plot(domains,interactive = True)
 
-test = File("cellfunc.pvd")
-test << domains
+#test = File("cellfunc.pvd")
+#test << domains
+
+u_inlet  = DirichletBC(V1, ((1, 0)), boundaries, 3)
+u_wall   = DirichletBC(V1, ((0, 0)), boundaries, 2)
+u_circ   = DirichletBC(V1, ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+u_bar = DirichletBC(V1, ((0, 0)), boundaries, 5)
+u_barwall = DirichletBC(V1, ((0, 0)), boundaries, 7)
+
+#u_inlet  = DirichletBC(Q, 1, boundaries, 3)
+#u_wall   = DirichletBC(Q, 0, boundaries, 2)
+#u_circ   = DirichletBC(Q, 0, boundaries, 6) #No slip on geometry in fluid
+#u_bar = DirichletBC(Q, 0, boundaries, 5)
+
+bcs = [u_inlet, u_wall, u_circ, u_bar, u_barwall]
+
+u = TrialFunction(V1)
+v = TestFunction(V1)
+
+u_ = Function(V1)
+
+a = inner(grad(u), grad(v))*dx
+L = inner(Constant((0,0)), v) *dx
+
+solve(a == L, u_, bcs)
+
+test = File("veri.pvd")
+test << u_

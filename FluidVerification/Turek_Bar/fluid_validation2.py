@@ -1,4 +1,4 @@
- from dolfin import *
+from dolfin import *
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -121,6 +121,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
       return Fd, Fl
 
+    def sigma_f(p, u):
+        return - p*Identity(2) + mu*(grad(u) + grad(u).T)
 
     #MY WAY
     def integrateFluidStress(p, u):
@@ -146,11 +148,17 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     	up = Function(VQ)
     	u, p = split(up)
 
+        up0 = Function(VQ)
+    	u0, p0 = split(up)
+
+        theta = 1;
     	# Fluid variational form
-    	F = (rho/k)*inner(u - u0, phi)*dx +\
-    		  rho*inner(grad(u)*u, phi)*dx + \
-    		  mu*inner(grad(u), grad(phi))*dx - \
-    		  div(phi)*p*dx - eta*div(u)*dx
+
+        F = ( rho/k*inner(u - u0, phi) \
+            + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
+            + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
+            - eta*div(u)*dx
+
 
     	if MPI.rank(mpi_comm_world()) == 0:
     		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
@@ -171,7 +179,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     		prm = solver.parameters
     		prm['newton_solver']['absolute_tolerance'] = 1E-10
     		prm['newton_solver']['relative_tolerance'] = 1E-10
-    		prm['newton_solver']['maximum_iterations'] = 100
+    		prm['newton_solver']['maximum_iterations'] = 10
     		prm['newton_solver']['relaxation_parameter'] = 1.0
 
 
@@ -179,7 +187,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
     		u_, p_ = up.split(True)
                 #vel_file << u_
-    		u0.assign(u_)
+    		up0.assign(up)
 
 
     		drag, lift =integrateFluidStress(p_, u_)
@@ -265,18 +273,18 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
         plt.plot(time, Drag, label='dt  %g' % dt)
         plt.legend(loc=4)
         plt.savefig("drag.png")
-        plt.show()
+        #plt.show()
 
 
 
 
-for m in ["turek2.xml"]:
+for m in ["turek1.xml"]:
     mesh = Mesh(m)
     #mesh = refine(mesh)
     for t in dt:
         Drag = []; Lift = []; time = []
         fluid(mesh, T, t, solver, steady, fig, v_deg, p_deg)
-if MPI.rank(mpi_comm_world()) == 0:
-    np.savetxt("Lift.txt", Lift, delimiter=',')
-    np.savetxt("Drag.txt", Drag, delimiter=',')
-    np.savetxt("time.txt", time, delimiter=',')
+#if MPI.rank(mpi_comm_world()) == 0:
+#    np.savetxt("Lift.txt", Lift, delimiter=',')
+#    np.savetxt("Drag.txt", Drag, delimiter=',')
+#    np.savetxt("time.txt", time, delimiter=',')
