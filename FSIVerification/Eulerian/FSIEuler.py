@@ -26,8 +26,6 @@ Bar = AutoSubDomain(lambda x: "on_boundary" and (near(x[1], 0.21)) or near(x[1],
 Circle =  AutoSubDomain(lambda x: "on_boundary" and (( (x[0] - 0.2)*(x[0] - 0.2) + (x[1] - 0.2)*(x[1] - 0.2)  < 0.0505*0.0505 )  ))
 Barwall =  AutoSubDomain(lambda x: "on_boundary" and (( (x[0] - 0.2)*(x[0] - 0.2) + (x[1] - 0.2)*(x[1] - 0.2)  < 0.0505*0.0505 )  and x[1]>=0.19 and x[1]<=0.21 and x[0]>0.2 ))
 
-Allboundaries = DomainBoundary()
-
 boundaries = FacetFunction("size_t",mesh)
 boundaries.set_all(0)
 #Allboundaries.mark(boundaries, 1)
@@ -39,7 +37,6 @@ Circle.mark(boundaries, 6)
 Barwall.mark(boundaries, 7)
 #test = File("Facet.pvd")
 #test << boundaries
-#plot(boundaries,interactive=True)
 
 ###############################################
 #             BOUNDARY CONDITIONS
@@ -53,29 +50,33 @@ D = 0.1
 inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
 ,"0"), t = 0.0, Um = Um, H = H)
 
-#velocity conditions
-u_inlet  = DirichletBC(VVQ.sub(0), inlet, boundaries, 3)
-u_wall   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
-u_circ   = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+#Velocity conditions
+#Fluid
+u_inlet   = DirichletBC(VVQ.sub(0), inlet   , boundaries, 3)
+u_circ    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+u_wall    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
+#Structure
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
 
 #Deformation conditions
-d_inlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 3)
+#Fluid
+d_inlet   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 3)
 d_outlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 4)
-d_wall   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 2)
-d_circ   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
-d_barwall = DirichletBC(VVQ.sub(1),((0, 0)), boundaries, 7)
+d_wall    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 2)
+d_circ    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+#Structure
+d_barwall = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 7)
 
 #Pressure Conditions
 p_out = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
 
 #Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
-       d_inlet, d_wall, d_circ, d_barwall, d_outlet]
+      d_barwall]
 
 ################################################
 #                    AREAS
-ds = Measure("ds", subdomain_data = boundaries)
+#ds = Measure("ds", subdomain_data = boundaries)
 dS = Measure("dS", subdomain_data = boundaries)
 n = FacetNormal(mesh)
 
@@ -85,21 +86,18 @@ domains = CellFunction("size_t",mesh)
 domains.set_all(1)
 Bar_area.mark(domains,2) #Overwrites structure domain
 dx = Measure("dx",subdomain_data=domains)
-plot(domains,interactive = True)
+#plot(domains,interactive = True)
 
+#print assemble(dot(Constant((1,0)),n("+"))*dS(5) )
 
 # TEST TRIAL FUNCTIONS
 psi, gamma, eta = TestFunctions(VVQ)
-#u, w, p = TrialFunctions(VVQ)
+
 udp = Function(VVQ)
 u, d, p  = split(udp)
 udp0 = Function(VVQ)
 u0, d0, p0  = split(udp0)
 d_disp = Function(V2)
-
-
-#EkPa = '62500
-#E = Constant(float(EkPa))
 
 #Fluid properties
 rho_f   = Constant(1000.0)
@@ -118,9 +116,7 @@ dt = 0.001
 k = Constant(dt)
 
 Re = Um*D/nu_f
-print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
-
-
+print "SOLVING FOR Re = %f" % Re
 
 def Venant_Kirchhof(d):
     I = Identity(2)
@@ -132,14 +128,18 @@ def Venant_Kirchhof(d):
 def sigma_f(p, u):
   return - p*Identity(2) + mu_f*(grad(u) + grad(u).T)
 
-
+#############################
 # Fluid variational form
 Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx(1) + rho_f*inner(grad(u)*u, psi)*dx(1)+ \
     inner(sigma_f(p, u), grad(psi))*dx(1)
 
 Fluid_continuity = eta*div(u)*dx(1)
 
+Fluid_deformation = dot(d - d0 + k*dot(grad(d), u)- k*u, gamma)*dx(1)
+
 #############################
+# Structure Variational form
+
 I = Identity(2)
 F_ = I - grad(d)
 J_ = det(F_)
@@ -147,7 +147,7 @@ F_1 = I - grad(d0)
 J_1 = det(F_1)
 theta = Constant(0.593)
 #theta = Constant(1)
-# Structure Variational form
+
 Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
     + rho_s*( J_*theta*inner(dot(grad(u), u), psi) + J_1*(1 - theta)*inner(dot(grad(u0), u0), psi) ) \
     + inner(J_*theta*Venant_Kirchhof(d) + (1 - theta)*J_1*Venant_Kirchhof(d0) , grad(psi))  \
@@ -156,17 +156,20 @@ Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
 Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
-# Mesh velocity function in fluid domain
-d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(5)
+# Mesh deformation function in fluid domain
+#d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(5)
+
 
 #Conservation of dynamics (CHECK SIGNS!!)
-dynamic = inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
-#dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
-#dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
+#dynamic = -inner(Venant_Kirchhof(d("+"))*n("+"), psi("+"))*dS(5) - inner(sigma_f(p, u("-"))*n("-"),psi("-"))*dS(5)
+dynamic = inner(Venant_Kirchhof(d)*n - sigma_f(p, u)*n , psi)*dS(5)
 
-F = Fluid_momentum + Fluid_continuity \
+############################
+#Add all contributions
+
+F = Fluid_momentum + Fluid_continuity + Fluid_deformation\
   + Solid_momentum + Solid_deformation \
-  + d_smooth #+ dynamic
+  #+ dynamic
 
 t = 0
 T = 10
@@ -196,12 +199,12 @@ while t <= T:
     residual   = 1                              # residual (To initiate)
     rel_res    = residual                       # relative residual
     max_it    = 100                             # max iterations
-    #ALTERNATIVE TO USE IDENT_ZEROS()
-    a = lhs(dF_W) + lhs(F);
-    L = rhs(dF_W) + rhs(F);
+
     ##NEWTON TALK! GOOD SOURCE
     #https://fenicsproject.org/qa/536/newton-method-programmed-manually
-    while rel_res > rtol and Iter < max_it:
+
+    #ER residual en bra parameter ??
+    while rel_res > rtol and residual > atol and Iter < max_it:
         #ALTERNATIVE TO USE IDENT_ZEROS()
         #A = assemble(a); b = assemble(L)
         A, b = assemble_system(dF_W, -F, bcs_u)
@@ -212,21 +215,25 @@ while t <= T:
         rel_res = norm(WD_inc, 'l2')
 
         #a = assemble(F)
-        for bc in bcs_u:
-            bc.apply(A)
+        #for bc in bcs_u:
+            #bc.apply(A)
+        residual = b.norm('l2')
 
         udp.vector()[:] += lmbda*WD_inc.vector()
-        print "iteration %d, relative error %g" % (Iter, rel_res)
+        print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
+        % (Iter, residual, atol, rel_res, rtol)
         Iter += 1
 
-
+    #print type(d)
     for bc in bcs:
         bc.apply(udp.vector())
 
     u, d, p  = udp.split(True)
-
+    #print type(d)
     u0, d0, p0  = udp0.split(True)
 
+    #CHECK THIS!!!
+    # https://fenicsproject.org/qa/2941/how-to-match-function-values-on-boundary
     d_disp.vector()[:] = d.vector()[:] - d0.vector()[:]
     ALE.move(mesh, d_disp)
     mesh.bounding_box_tree().build(mesh)
