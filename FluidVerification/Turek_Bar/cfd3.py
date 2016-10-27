@@ -172,16 +172,16 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     		J = derivative(F, up)
 
     		problem = NonlinearVariationalProblem(F, up, bcs, J)
-    		solver  = NonlinearVariationalSolver(problem)
+    		sol  = NonlinearVariationalSolver(problem)
 
-    		prm = solver.parameters
+    		prm = sol.parameters
     		prm['newton_solver']['absolute_tolerance'] = 1E-10
     		prm['newton_solver']['relative_tolerance'] = 1E-10
     		prm['newton_solver']['maximum_iterations'] = 10
     		prm['newton_solver']['relaxation_parameter'] = 1.0
 
 
-    		solver.solve()
+    		sol.solve()
 
     		u_, p_ = up.split(True)
                 #vel_file << u_
@@ -354,16 +354,16 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
             plt.ylabel("Lift force Newton")
             plt.plot(time, Lift, label='dt  %g' % dt)
             plt.legend(loc=4)
-            plt.savefig("lift.png")
+            plt.savefig("lift_" + solver + "_DOF=" + str(U_dof) + "_.png")
 
             plt.figure(2)
-            plt.title("LIFT CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+            plt.title("DRAG CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
             % (Re, U_dof, mesh_cells, T, dt) )
             plt.xlabel("Time Seconds")
             plt.ylabel("Drag force Newton")
             plt.plot(time, Drag, label='dt  %g' % dt)
             plt.legend(loc=4)
-            plt.savefig("drag.png")
+            plt.savefig("drag_" + solver + "_DOF=" + str(U_dof) + "_.png")
             #plt.show()
 
 
@@ -373,6 +373,8 @@ for m in ["turek1.xml"]:
     mesh = Mesh(m)
     #mesh = refine(mesh)
     for t in dt:
+        mesh = refine(mesh)
+        #mesh = refine(mesh)
         Drag = []; Lift = []; time = []
         fluid(mesh, T, t, solver, steady, fig, v_deg, p_deg)
 #if MPI.rank(mpi_comm_world()) == 0:
