@@ -212,7 +212,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
         dw = TrialFunction(VQ)
 
-        atol, rtol = 1e-10, 1e-10                  # abs/rel tolerances
+        atol, rtol = 1e-7, 1e-7                  # abs/rel tolerances
         lmbda      = 1.0                            # relaxation parameter
         WD_inc      = Function(VQ)                  # residual
         Iter      = 0                               # number of iterations
