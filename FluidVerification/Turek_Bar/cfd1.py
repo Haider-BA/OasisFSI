@@ -3,24 +3,32 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-#default values
-v_deg = 1; p_deg = 1
-solver = "Newton"; fig = False;
+import argparse
+from argparse import RawTextHelpFormatter
 
-#command line arguments
-while len(sys.argv) > 1:
-    option = sys.argv[1]; del sys.argv[1];
-    if option == "-v_deg":
-        v_deg = int(sys.argv[1]); del sys.argv[1]
-    elif option == "-p_deg":
-        p_deg = int(sys.argv[1]); del sys.argv[1]
-    elif option == "-solver":
-        solver = str(sys.argv[1]); del sys.argv[1]
-    elif option == "-fig":
-        fig = bool(sys.argv[1]); del sys.argv[1]
-    else:
-        print sys.argv[0], ': invalid option', option
+parser = argparse.ArgumentParser(description="Implementation of Turek test case CFD1\n"
+"For details: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.550.1689&rep=rep1&type=pdf",\
+ formatter_class=RawTextHelpFormatter, \
+ epilog="Example --> python cfd1.py -v_deg 2 -p_deg 1 -solver Newton2")
+group = parser.add_argument_group('Parameters')
+group.add_argument("-p_deg",  type=int, help="Set degree of pressure                     --> Default=1", default=1)
+group.add_argument("-v_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=2)
+group.add_argument("-theta",  type=int, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=2)
+group2 = parser.add_argument_group('Solvers')
+group2.add_argument("-solver", help="Newton   -- Fenics built-in module \n"
+"Newton2  -- Manuell implementation\n"
+"Piccard  -- Manuell implementation\n"
+"Default  --> Newton", default="Newton")
 
+args = parser.parse_args()
+
+v_deg = args.v_deg
+p_deg = args.p_deg
+solver = args.solver
+theta = args.theta
+fig = False
+
+#CFD1 Parameters
 H = 0.41
 D = 0.1
 R = D/2.
@@ -30,7 +38,7 @@ rho = 10**3
 mu = rho*nu
 
 
-def fluid(mesh, solver, fig, v_deg, p_deg):
+def fluid(mesh, solver, fig, v_deg, p_deg, theta):
     #plot(mesh)
     #interactive()
 
@@ -79,16 +87,6 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
     bcs2 = [u_inlet2, nos_geo, nos_wall]
 
 
-    # TEST TRIAL FUNCTIONS
-    phi, eta = TestFunctions(VQ)
-    u ,p = TrialFunctions(VQ)
-
-    ug, pg = TrialFunctions(VQ)
-    phig, etag = TestFunctions(VQ)
-
-    u0 = Function(V)
-
-
     #Physical parameter
     t = 0.0
 
@@ -131,13 +129,12 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
     print "Method %s" % (solver)
 
     if solver == "Newton":
+        phi, eta = TestFunctions(VQ)
         up = Function(VQ)
         u, p = split(up)
 
         up0 = Function(VQ)
         u0, p0 = split(up0)
-
-        theta = 1.0
 
         F = (rho*theta*inner(dot(grad(u), u), phi) + rho*(1 - theta)*inner(dot(grad(u0), u0), phi)   \
         + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi) ) )*dx   \
@@ -161,14 +158,6 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
         solver.solve()
         u_ , p_ = up.split(True)
 
-        #plot(u_, interactive())
-
-        file_v = File("velocity.pvd")
-        file_v << u_
-
-        file_p = File("pressure.pvd")
-        file_p << p_
-
         drag, lift = integrateFluidStress(p_, u_)
 
         U_m = 2./3.*Um
@@ -178,7 +167,7 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
         % (V.dim(), mesh.num_cells(), v_deg, p_deg, drag, lift))
 
     if solver == "Newton2":
-
+        phi, eta = TestFunctions(VQ)
         up = Function(VQ)
         u, p = split(up)
 
@@ -195,7 +184,6 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
             print "Starting Newton iterations"
 
         dw = TrialFunction(VQ)
-        print "JACOBI"
         dF_W = derivative(F, up)                # Jacobi
 
         atol, rtol = 1e-7, 1e-6                  # abs/rel tolerances
@@ -241,12 +229,6 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
 
         u_, p_  = up.split(True)
 
-        file_v = File("velocity.pvd")
-        file_v << u_
-
-        file_p = File("pressure.pvd")
-        file_p << p_
-
         drag, lift = integrateFluidStress(p_, u_)
 
         U_m = 2./3.*Um
@@ -257,42 +239,40 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
 
     if solver == "Piccard":
 
+        phi, eta = TestFunctions(VQ)
+        u ,p = TrialFunctions(VQ)
+
+        u0 = Function(V); p0 = Function(Q)
         up = Function(VQ)
+
+        theta = 0.5
 
         if MPI.rank(mpi_comm_world()) == 0:
             print "Starting Piccard iterations"
-            eps = 10
-            k_iter = 0
-            max_iter = 20
 
-        while eps > 1E-7 and k_iter < max_iter:
+            tol    = 1E-6                            # tolerance
+            Iter   = 0                               # number of iterations
+            eps    = 1                               # residual (To initiate)
+            max_it = 100                             # max iterations
 
-            #SGIMA WRITTEN OUT
-            #F = mu*inner(grad(u), grad(phi))*dx + rho*inner(grad(u)*u0, phi)*dx \
-            #- div(phi)*p*dx - eta*div(u)*dx
+        while eps > tol and Iter < max_it:
 
-            F = rho*inner(grad(u)*u0, phi)*dx +\
-            inner(sigma_f(p, u), grad(phi))*dx- \
-            eta*div(u)*dx
+            F = (rho*theta*inner(dot(grad(u), u0), phi) + rho*(1 - theta)*inner(dot(grad(u0), u0), phi)   \
+            + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi) ) )*dx   \
+            + eta*div(u)*dx
 
             solve(lhs(F) == rhs(F), up, bcs)
             u_ , p_ = up.split(True)
-            eps = errornorm(u_, u0, degree_rise=3)
+            eps = errornorm(u_, u0, norm_type="l2", degree_rise=2)
+            #test = u_ - u0
+            #print norm(test, 'l2')
             u0.assign(u_)
+            print "iterations: %d  error: %.3e" %(Iter, eps)
 
-            k_iter += 1
+            Iter += 1
 
         if MPI.rank(mpi_comm_world()) == 0:
-            print "iterations: %d  error: %.3e" %(k_iter, eps)
-
             u_ , p_ = up.split(True)
-            #u_ , p_ = split(up)
-
-            file_v = File("velocity.pvd")
-            file_v << u_
-
-            file_p = File("pressure.pvd")
-            file_p << p_
 
             drag, lift = integrateFluidStress(p_, u_)
 
@@ -310,4 +290,4 @@ for m in ["turek1.xml"]: #or turek1.xml
         if i > 0:
             mesh = refine(mesh)
             Drag = []; Lift = []; time = []
-            fluid(mesh, solver, fig, v_deg, p_deg)
+            fluid(mesh, solver, fig, v_deg, p_deg, theta)
