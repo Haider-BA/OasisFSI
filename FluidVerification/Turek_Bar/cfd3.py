@@ -107,7 +107,6 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
     #MEK4300 WAY
     def FluidStress(p, u):
-      print "MEK4300 WAY"
       n = -FacetNormal(mesh)
       n1 = as_vector((1.0,0)) ; n2 = as_vector((0,1.0))
       nx = dot(n,n1) ; ny = dot(n,n2)
@@ -138,8 +137,9 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
       return fX, fY
 
     Re = Um*D*rho/mu
-    print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
-    print "DOF = %f,  cells = %f" % (U_dof, mesh_cells)
+    if MPI.rank(mpi_comm_world()) == 0:
+        print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
+        print "DOF = %f,  cells = %f" % (U_dof, mesh_cells)
 
 
     if solver == "Newton":
@@ -229,7 +229,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
             bcs_u.append(i)
 
         if MPI.rank(mpi_comm_world()) == 0:
-    		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
+    		print "Starting Newton iterations"
         #vel_file = File("velocity/velocity.pvd")
         while t <= T:
             time.append(t)
@@ -257,7 +257,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
                 residual = b.norm('l2')
 
                 up.vector()[:] += lmbda*WD_inc.vector()
-                print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
+                if MPI.rank(mpi_comm_world()) == 0:
+                    print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
                 % (Iter, residual, atol, rel_res, rtol)
                 Iter += 1
 
@@ -330,41 +331,40 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
         	u1.assign(u_)
         	t += dt
+    if MPI.rank(mpi_comm_world()) == 0:
+        print "Max Lift Force %.4f" % max(Lift)
+        print "Max Drag Force %.4f" % max(Drag)
+        print "Min Lift Force %.4f" % max(Lift)
+        print "Min Drag Force %.4f" % max(Drag)
 
-    print "Max Lift Force %.4f" % max(Lift)
-    print "Max Drag Force %.4f" % max(Drag)
-    print "Min Lift Force %.4f" % max(Lift)
-    print "Min Drag Force %.4f" % max(Drag)
 
+        print "Mean Lift force %.4f" % (0.5*(max(Lift) + min(Lift) ))
+        print "Mean Drag force %.4f" % (0.5*(max(Drag) + min(Drag) ))
 
-    print "Mean Lift force %.4f" % (0.5*(max(Lift) + min(Lift) ))
-    print "Mean Drag force %.4f" % (0.5*(max(Drag) + min(Drag) ))
-
-    print "Lift amplitude %.4f" % (0.5*(max(Lift) - min(Lift) ))
-    print "Drag amplitude %.4f" % (0.5*(max(Drag) - min(Drag) ))
+        print "Lift amplitude %.4f" % (0.5*(max(Lift) - min(Lift) ))
+        print "Drag amplitude %.4f" % (0.5*(max(Drag) - min(Drag) ))
 
 
     if fig == True:
-        #if MPI.rank(mpi_comm_world()) == 0:
-        print "here", fig
-        plt.figure(1)
-        plt.title("LIFT CFD3 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
-        % (Re, U_dof, mesh_cells, T, dt) )
-        plt.xlabel("Time Seconds")
-        plt.ylabel("Lift force Newton")
-        plt.plot(time, Lift, label='dt  %g' % dt)
-        plt.legend(loc=4)
-        plt.savefig("lift.png")
+        if MPI.rank(mpi_comm_world()) == 0:
+            plt.figure(1)
+            plt.title("LIFT CFD3 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+            % (Re, U_dof, mesh_cells, T, dt) )
+            plt.xlabel("Time Seconds")
+            plt.ylabel("Lift force Newton")
+            plt.plot(time, Lift, label='dt  %g' % dt)
+            plt.legend(loc=4)
+            plt.savefig("lift.png")
 
-        plt.figure(2)
-        plt.title("LIFT CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
-        % (Re, U_dof, mesh_cells, T, dt) )
-        plt.xlabel("Time Seconds")
-        plt.ylabel("Drag force Newton")
-        plt.plot(time, Drag, label='dt  %g' % dt)
-        plt.legend(loc=4)
-        plt.savefig("drag.png")
-        #plt.show()
+            plt.figure(2)
+            plt.title("LIFT CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+            % (Re, U_dof, mesh_cells, T, dt) )
+            plt.xlabel("Time Seconds")
+            plt.ylabel("Drag force Newton")
+            plt.plot(time, Drag, label='dt  %g' % dt)
+            plt.legend(loc=4)
+            plt.savefig("drag.png")
+            #plt.show()
 
 
 
