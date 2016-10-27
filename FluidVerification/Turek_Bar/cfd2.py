@@ -24,7 +24,7 @@ while len(sys.argv) > 1:
 H = 0.41
 D = 0.1
 R = D/2.
-Um = 0.2
+Um = 1.0
 nu = 0.001
 rho = 10**3
 mu = rho*nu
@@ -177,6 +177,7 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
         Drag = %f, Lift = %f' \
         % (V.dim(), mesh.num_cells(), v_deg, p_deg, drag, lift))
 
+    #Manuell Implementation!
     if solver == "Newton2":
 
         up = Function(VQ)
@@ -305,9 +306,7 @@ def fluid(mesh, solver, fig, v_deg, p_deg):
 #set_log_active(False)
 for m in ["turek1.xml"]: #or turek1.xml
     mesh = Mesh(m)
+    mesh = refine(mesh)
     print "SOLVING FOR MESH %s" % m
-    for i in range(2):
-        if i > 0:
-            mesh = refine(mesh)
-            Drag = []; Lift = []; time = []
-            fluid(mesh, solver, fig, v_deg, p_deg)
+    Drag = []; Lift = []; time = []
+    fluid(mesh, solver, fig, v_deg, p_deg)

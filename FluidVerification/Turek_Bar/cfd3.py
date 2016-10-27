@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 print mesh
 #default values
-T = 1.0; dt = []; rho  = 10.0; mu = 1.0; v_deg = 1; p_deg = 1
+T = 1.0; dt = []; v_deg = 1; p_deg = 1
 solver = "Newton"; steady = False; fig = True;
 
 #command line arguments
@@ -19,15 +19,8 @@ while len(sys.argv) > 1:
         v_deg = int(sys.argv[1]); del sys.argv[1]
     elif option == "-p_deg":
         p_deg = int(sys.argv[1]); del sys.argv[1]
-    elif option == "-rho":
-        rho = Constant(float(sys.argv[1])); del sys.argv[1]
-    elif option == "-mu":
-        mu = float(sys.argv[1]); del sys.argv[1]
     elif option == "-solver":
         solver = str(sys.argv[1]); del sys.argv[1]
-    elif option == "-steady":
-        steady = True
-        #steady = bool(sys.argv[1]); del sys.argv[1]
     elif option == "-fig":
         fig = True
         #fig = bool(sys.argv[1]); del sys.argv[1]
@@ -121,6 +114,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
       return Fd, Fl
 
+    def sigma_f(p, u):
+        return - p*Identity(2) + mu*(grad(u) + grad(u).T)
 
     #MY WAY
     def integrateFluidStress(p, u):
@@ -146,11 +141,17 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     	up = Function(VQ)
     	u, p = split(up)
 
+        up0 = Function(VQ)
+    	u0, p0 = split(up)
+
+        theta = 1;
     	# Fluid variational form
-    	F = (rho/k)*inner(u - u0, phi)*dx +\
-    		  rho*inner(grad(u)*u, phi)*dx + \
-    		  mu*inner(grad(u), grad(phi))*dx - \
-    		  div(phi)*p*dx - eta*div(u)*dx
+
+        F = ( rho/k*inner(u - u0, phi) \
+            + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
+            + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
+            - eta*div(u)*dx
+
 
     	if MPI.rank(mpi_comm_world()) == 0:
     		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
@@ -171,7 +172,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     		prm = solver.parameters
     		prm['newton_solver']['absolute_tolerance'] = 1E-10
     		prm['newton_solver']['relative_tolerance'] = 1E-10
-    		prm['newton_solver']['maximum_iterations'] = 100
+    		prm['newton_solver']['maximum_iterations'] = 10
     		prm['newton_solver']['relaxation_parameter'] = 1.0
 
 
@@ -179,7 +180,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
     		u_, p_ = up.split(True)
                 #vel_file << u_
-    		u0.assign(u_)
+    		up0.assign(up)
 
 
     		drag, lift =integrateFluidStress(p_, u_)
@@ -189,6 +190,93 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     		Lift.append(lift)
 
     		t += dt
+
+    if solver == "Newton2":
+
+        up = Function(VQ)
+        u, p = split(up)
+
+        up0 = Function(VQ)
+        u0, p0 = split(up0)
+
+        theta = 1.0
+
+        F = (rho*theta*inner(dot(grad(u), u), phi) + rho*(1 - theta)*inner(dot(grad(u0), u0), phi)   \
+        + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi) ) )*dx   \
+        + eta*div(u)*dx
+
+        dw = TrialFunction(VQ)
+        dF_W = derivative(F, up)                # Jacobi
+
+        atol, rtol = 1e-7, 1e-6                  # abs/rel tolerances
+        lmbda      = 1.0                            # relaxation parameter
+        WD_inc      = Function(VQ)                  # residual
+        Iter      = 0                               # number of iterations
+        residual   = 1                              # residual (To initiate)
+        rel_res    = residual                       # relative residual
+        max_it    = 100                              # max iterations
+        bcs_u = []
+
+        for bc in bcs:
+            bc.apply(up.vector())
+
+        for i in bcs:
+            i.homogenize()
+            bcs_u.append(i)
+        if MPI.rank(mpi_comm_world()) == 0:
+    		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
+        #vel_file = File("velocity/velocity.pvd")
+    	while t <= T:
+
+        	time.append(t)
+
+        	if t < 2:
+        		inlet.t = t;
+        	if t >= 2:
+        		inlet.t = 2;
+
+            while rel_res > rtol and residual > atol and Iter < max_it:
+                A, b = assemble_system(dF_W, -F, bcs_u)
+
+                # Must be implemented in FSI #############
+                #A.ident_zeros()                         #
+                #[bc.apply(A, b) for bc in bcs_u]        #
+                ##########################################
+                solve(A, WD_inc.vector(), b)
+
+                rel_res = norm(WD_inc, 'l2')
+
+                a = assemble(F)
+                for bc in bcs_u:
+                    bc.apply(a)
+                residual = b.norm('l2')
+
+                up.vector()[:] += lmbda*WD_inc.vector()
+                print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
+                % (Iter, residual, atol, rel_res, rtol)
+                Iter += 1
+
+            #print type(d)
+            for bc in bcs:
+                bc.apply(up.vector())
+
+            u_, p_  = up.split(True)
+
+            #file_v = File("velocity.pvd")
+            #file_v << u_
+
+            #file_p = File("pressure.pvd")
+            #file_p << p_
+
+            drag, lift = integrateFluidStress(p_, u_)
+
+            U_m = 2./3.*Um
+
+            print('U_Dof= %d, cells = %d, v_deg = %d, p_deg = %d, \
+            Drag = %f, Lift = %f' \
+            % (V.dim(), mesh.num_cells(), v_deg, p_deg, drag, lift))
+
+        t += dt
 
     if solver == "Piccard":
 
@@ -265,18 +353,18 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
         plt.plot(time, Drag, label='dt  %g' % dt)
         plt.legend(loc=4)
         plt.savefig("drag.png")
-        plt.show()
+        #plt.show()
 
 
 
 
-for m in ["turek2.xml"]:
+for m in ["turek1.xml"]:
     mesh = Mesh(m)
     #mesh = refine(mesh)
     for t in dt:
         Drag = []; Lift = []; time = []
         fluid(mesh, T, t, solver, steady, fig, v_deg, p_deg)
-if MPI.rank(mpi_comm_world()) == 0:
-    np.savetxt("results/Lift.txt", Lift, delimiter=',')
-    np.savetxt("results/Drag.txt", Drag, delimiter=',')
-    np.savetxt("results/time.txt", time, delimiter=',')
+#if MPI.rank(mpi_comm_world()) == 0:
+#    np.savetxt("Lift.txt", Lift, delimiter=',')
+#    np.savetxt("Drag.txt", Drag, delimiter=',')
+#    np.savetxt("time.txt", time, delimiter=',')
