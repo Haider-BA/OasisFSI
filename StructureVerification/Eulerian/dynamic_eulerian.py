@@ -105,7 +105,7 @@ if implementation == "1":
 dis_x = []
 dis_y = []
 time = []
-T = 10.0
+T = 3.0
 t = 0
 #ime = np.linspace(0,T,(T/dt))
 print "time len",len(time)
@@ -132,6 +132,7 @@ while t < T:
             dis_y.append(d0(coord)[1])
         #Manual
         if solver == "Newton2":
+            print "Solver Newton2"
             dw = TrialFunction(VV)
             dG_W = derivative(G, wd, dw)                # Jacobi
 
@@ -146,10 +147,6 @@ while t < T:
             residual   = 1                              # residual (To initiate)
             rel_res    = residual                       # relative residual
             max_it    = 100                             # max iterations
-            #ALTERNATIVE TO USE IDENT_ZEROS()
-            a = lhs(dG_W) + lhs(G);
-            L = rhs(dG_W) + rhs(G);
-
 
             while rel_res > rtol and Iter < max_it:
                 A, b = assemble_system(dG_W, -G, bcs_u)
@@ -158,12 +155,13 @@ while t < T:
 
                 rel_res = norm(WD_inc, 'l2')
 
-                #a = assemble(G)
-                #for bc in bcs_u:
-                    #bc.apply(a)
-
+                a = assemble(G)
+                for bc in bcs_u:
+                    bc.apply(a)
+                residual = b.norm('l2')
                 wd.vector()[:] += lmbda*WD_inc.vector()
-                print "Newton iteration %d:  r (rel) = %.3e (tol = %.3e) " % (Iter, rel_res, rtol)
+                print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
+                % (Iter, residual, atol, rel_res, rtol)
                 Iter += 1
 
 
