@@ -84,9 +84,14 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     nos_geo = DirichletBC(VQ.sub(0), ((0, 0)), boundaries, 1)
     nos_wall = DirichletBC(VQ.sub(0), ((0, 0)), boundaries, 4)
 
+    u_inlet0 = DirichletBC(VQ.sub(0), inlet, boundaries, 2)
+    nos_geo0 = DirichletBC(VQ.sub(0), ((0, 0)), boundaries, 1)
+    nos_wall0 = DirichletBC(VQ.sub(0), ((0, 0)), boundaries, 4)
+
     p_out = DirichletBC(VQ.sub(1), 0, boundaries, 3)
 
     bcs = [u_inlet, nos_geo, nos_wall]
+    bcs0 = [u_inlet0, nos_geo0, nos_wall0]
 
 
     # TEST TRIAL FUNCTIONS
@@ -206,9 +211,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
         + eta*div(u)*dx
 
         dw = TrialFunction(VQ)
-        dF_W = derivative(F, up)                # Jacobi
 
-        atol, rtol = 1e-7, 1e-6                  # abs/rel tolerances
+        atol, rtol = 1e-10, 1e-10                  # abs/rel tolerances
         lmbda      = 1.0                            # relaxation parameter
         WD_inc      = Function(VQ)                  # residual
         Iter      = 0                               # number of iterations
@@ -220,20 +224,21 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
         for bc in bcs:
             bc.apply(up.vector())
 
-        for i in bcs:
+        for i in bcs0:
             i.homogenize()
             bcs_u.append(i)
+
         if MPI.rank(mpi_comm_world()) == 0:
     		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
         #vel_file = File("velocity/velocity.pvd")
-    	while t <= T:
+        while t <= T:
+            time.append(t)
+            if t < 2:
+                inlet.t = t;
+            if t >= 2:
+                inlet.t = 2;
 
-        	time.append(t)
-
-        	if t < 2:
-        		inlet.t = t;
-        	if t >= 2:
-        		inlet.t = 2;
+            dF_W = derivative(F, up, dw)
 
             while rel_res > rtol and residual > atol and Iter < max_it:
                 A, b = assemble_system(dF_W, -F, bcs_u)
@@ -267,16 +272,20 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
             #file_p = File("pressure.pvd")
             #file_p << p_
-
-            drag, lift = integrateFluidStress(p_, u_)
+            #Reset counters
+            Iter      = 0
+            residual   = 1
+            rel_res    = residual
 
             U_m = 2./3.*Um
+            drag, lift =integrateFluidStress(p_, u_)
+            if MPI.rank(mpi_comm_world()) == 0:
+                print "Time: ",t ," drag: ",drag, "lift: ",lift
+            Drag.append(drag)
+            Lift.append(lift)
+            up0.assign(up)
 
-            print('U_Dof= %d, cells = %d, v_deg = %d, p_deg = %d, \
-            Drag = %f, Lift = %f' \
-            % (V.dim(), mesh.num_cells(), v_deg, p_deg, drag, lift))
-
-        t += dt
+            t += dt
 
     if solver == "Piccard":
 
@@ -339,7 +348,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
         #if MPI.rank(mpi_comm_world()) == 0:
         print "here", fig
         plt.figure(1)
-        plt.title("LIFT \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
+        plt.title("LIFT CFD3 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+        % (Re, U_dof, mesh_cells, T, dt) )
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift, label='dt  %g' % dt)
@@ -347,7 +357,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
         plt.savefig("lift.png")
 
         plt.figure(2)
-        plt.title("DRAG \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
+        plt.title("LIFT CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+        % (Re, U_dof, mesh_cells, T, dt) )
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag, label='dt  %g' % dt)
