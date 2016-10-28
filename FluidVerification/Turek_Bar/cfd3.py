@@ -84,9 +84,6 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
     ,"0"), t = 0.0, Um = Um, H = H)
 
-    inlet_steady = Expression(("1.5*Um*x[1]*(H - x[1]) / (pow((H/2.0), 2)) "\
-    ,"0"), Um = Um, H = H)
-
 
     u_inlet = DirichletBC(VQ.sub(0), inlet, boundaries, 2)
     nos_geo = DirichletBC(VQ.sub(0), ((0, 0)), boundaries, 1)
@@ -98,7 +95,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
 
     p_out = DirichletBC(VQ.sub(1), 0, boundaries, 3)
 
-    bcs = [u_inlet, nos_geo, nos_wall]
+    bcs = [u_inlet, nos_geo, nos_wall, p_out]
     bcs0 = [u_inlet0, nos_geo0, nos_wall0]
 
 
