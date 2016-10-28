@@ -157,10 +157,15 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
         #theta = 1;
     	# Fluid variational form
 
-        F = ( rho/k*inner(u - u0, phi) \
-            + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
-            + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
-            - eta*div(u)*dx
+        #F = ( rho/k*inner(u - u0, phi) \
+        #    + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
+        #    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
+        #    - eta*div(u)*dx
+
+        F = (rho/k)*inner(u - u0, phi)*dx +\
+			  rho*inner(grad(u)*u0, phi)*dx + \
+			  mu*inner(grad(u), grad(phi))*dx - \
+			  div(phi)*p*dx - eta*div(u)*dx
 
         J = derivative(F, up)
 
