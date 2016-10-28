@@ -163,7 +163,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
         #    - eta*div(u)*dx
 
         F = (rho/k)*inner(u - u0, phi)*dx +\
-			  rho*inner(grad(u)*u0, phi)*dx + \
+			  rho*inner(grad(u)*u, phi)*dx + \
 			  mu*inner(grad(u), grad(phi))*dx - \
 			  div(phi)*p*dx - eta*div(u)*dx
 
