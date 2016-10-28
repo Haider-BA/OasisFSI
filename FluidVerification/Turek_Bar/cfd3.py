@@ -3,34 +3,40 @@ import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
 
-print mesh
-#default values
-T = 1.0; dt = []; v_deg = 1; p_deg = 1
-solver = "Newton"; steady = False; fig = True;
+import argparse
+from argparse import RawTextHelpFormatter
 
-#command line arguments
-while len(sys.argv) > 1:
-    option = sys.argv[1]; del sys.argv[1];
-    if option == "-T":
-        T = float(sys.argv[1]); del sys.argv[1]
-    elif option == "-dt":
-        dt.append(float(sys.argv[1])); del sys.argv[1]
-    elif option == "-v_deg":
-        v_deg = int(sys.argv[1]); del sys.argv[1]
-    elif option == "-p_deg":
-        p_deg = int(sys.argv[1]); del sys.argv[1]
-    elif option == "-solver":
-        solver = str(sys.argv[1]); del sys.argv[1]
-    elif option == "-fig":
-        fig = True
-        #fig = bool(sys.argv[1]); del sys.argv[1]
-    elif option.isdigit() == False:
-        dt.append(float(option)); #del sys.argv[1]
-    else:
-        print sys.argv[0], ': invalid option', option
+parser = argparse.ArgumentParser(description="########################################"
+"\nImplementation of Turek test case CFD3\n######################################## \n \n"
+"-  The program automaticly stores experiment parameters and plots of lift and drag \n"
+"   in the experiment folder \n \n"
+"-  For details of numerical benchmark go to:\n   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.550.1689&rep=rep1&type=pdf",\
+ formatter_class=RawTextHelpFormatter, \
+ epilog="############################################################################\n"
+ "Example --> python cfd3.py -T 0.02 -dt 0.01 -v_deg 2 -p_deg 1 -solver Newton\n"
+ "############################################################################")
+group = parser.add_argument_group('Parameters')
+group.add_argument("-T",      type=float, help="Set degree of pressure                     --> Default=1", default=0.02)
+group.add_argument("-dt",      type=float, help="Set degree of pressure                     --> Default=1", default=0.01)
+group.add_argument("-p_deg",  type=int, help="Set degree of pressure                     --> Default=1", default=1)
+group.add_argument("-v_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=2)
+group.add_argument("-theta",  type=int, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=2)
+group2 = parser.add_argument_group('Solvers')
+group2.add_argument("-solver", help="Newton   -- Fenics built-in module \n"
+"Newton2  -- Manuell implementation\n"
+"Piccard  -- Manuell implementation\n"
+"Default  --> Newton", default="Newton")
 
-if len(dt) == 0:
-    dt = [0.1]
+args = parser.parse_args()
+T = args.T
+dt = args.dt
+solver = args.solver
+v_deg = args.v_deg
+p_deg = args.p_deg
+solver = args.solver
+theta = args.theta
+fig = False
+
 
 H = 0.41
 D = 0.1
@@ -40,7 +46,7 @@ nu = 0.001
 rho = 1000.
 mu = rho*nu
 
-def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg, m):
+def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, m):
 
     #plot(mesh,interactive=True)
     V = VectorFunctionSpace(mesh, "CG", v_deg) # Fluid velocity
@@ -173,6 +179,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg, m):
 
     		problem = NonlinearVariationalProblem(F, up, bcs, J)
     		sol  = NonlinearVariationalSolver(problem)
+
+
 
     		prm = sol.parameters
     		prm['newton_solver']['absolute_tolerance'] = 1E-7
@@ -364,8 +372,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg, m):
         print("Creating report file ./experiments/cfd3/"+str(count)+"/report.txt")
         name = "./experiments/cfd3/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
         f = open(name, 'w')
-        f.write("""CFD3 Turek parameters\nc
-Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\np_deg = %(p_deg)g\nsolver = %(solver)s\n""" % vars())
+        f.write("""CFD3 Turek parameters\n
+Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\np_deg = %(p_deg)g\nsolver = %(solver)s\ntheta_scheme=%(theta).1f\n""" % vars())
         f.write("""Runtime = %f \n\n""" % run_time)
 
         f.write("""Max Lift Force = %(max_lift)g\n
@@ -380,27 +388,25 @@ Amplitude Drag Force = %(drag_amp)g\n""" %vars())
         f.close()
 
 
+    if MPI.rank(mpi_comm_world()) == 0:
+        plt.figure(1)
+        plt.title("LIFT CFD3 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+        % (Re, U_dof, mesh_cells, T, dt) )
+        plt.xlabel("Time Seconds")
+        plt.ylabel("Lift force Newton")
+        plt.plot(time, Lift, label='dt  %g' % dt)
+        plt.legend(loc=4)
+        plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png")
 
-    if fig == True:
-        if MPI.rank(mpi_comm_world()) == 0:
-            plt.figure(1)
-            plt.title("LIFT CFD3 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
-            % (Re, U_dof, mesh_cells, T, dt) )
-            plt.xlabel("Time Seconds")
-            plt.ylabel("Lift force Newton")
-            plt.plot(time, Lift, label='dt  %g' % dt)
-            plt.legend(loc=4)
-            plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png")
-
-            plt.figure(2)
-            plt.title("DRAG CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
-            % (Re, U_dof, mesh_cells, T, dt) )
-            plt.xlabel("Time Seconds")
-            plt.ylabel("Drag force Newton")
-            plt.plot(time, Drag, label='dt  %g' % dt)
-            plt.legend(loc=4)
-            plt.savefig("./experiments/cfd3/"+str(count)+"/drag.png")
-            #plt.show()
+        plt.figure(2)
+        plt.title("DRAG CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+        % (Re, U_dof, mesh_cells, T, dt) )
+        plt.xlabel("Time Seconds")
+        plt.ylabel("Drag force Newton")
+        plt.plot(time, Drag, label='dt  %g' % dt)
+        plt.legend(loc=4)
+        plt.savefig("./experiments/cfd3/"+str(count)+"/drag.png")
+        #plt.show()
 
 
 
@@ -408,11 +414,8 @@ Amplitude Drag Force = %(drag_amp)g\n""" %vars())
 for m in ["turek1.xml"]:
     mesh = Mesh(m)
     #mesh = refine(mesh)
-    for t in dt:
-        #mesh = refine(mesh)
-        #mesh = refine(mesh)
-        Drag = []; Lift = []; time = []
-        fluid(mesh, T, t, solver, steady, fig, v_deg, p_deg, m)
+    Drag = []; Lift = []; time = []
+    fluid(mesh, T, dt, solver, fig, v_deg, p_deg, m)
 #if MPI.rank(mpi_comm_world()) == 0:
 #    np.savetxt("Lift.txt", Lift, delimiter=',')
 #    np.savetxt("Drag.txt", Drag, delimiter=',')
