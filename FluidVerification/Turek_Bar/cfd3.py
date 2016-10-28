@@ -1,5 +1,5 @@
 from dolfin import *
-import sys
+import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -40,7 +40,7 @@ nu = 0.001
 rho = 1000.
 mu = rho*nu
 
-def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
+def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg, m):
 
     #plot(mesh,interactive=True)
     V = VectorFunctionSpace(mesh, "CG", v_deg) # Fluid velocity
@@ -195,7 +195,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     		Lift.append(lift)
 
     		t += dt
-
+    tic()
     if solver == "Newton2":
 
         up = Function(VQ)
@@ -331,18 +331,54 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
         	u1.assign(u_)
         	t += dt
+    run_time = toc()
+    print time
+
     if MPI.rank(mpi_comm_world()) == 0:
-        print "Max Lift Force %.4f" % max(Lift)
-        print "Max Drag Force %.4f" % max(Drag)
-        print "Min Lift Force %.4f" % max(Lift)
-        print "Min Drag Force %.4f" % max(Drag)
+        max_drag = max(Drag); min_drag = min(Drag)
+        max_lift = max(Lift); min_lift = min(Lift)
+
+        mean_lift = (0.5*(max(Lift) + min(Lift) ))
+        mean_drag = (0.5*(max(Drag) + min(Drag) ))
+
+        lift_amp = (0.5*(max(Lift) - min(Lift) ))
+        drag_amp = (0.5*(max(Drag) + min(Drag) ))
+        print "Max Lift Force %.4f" % max_lift
+        print "Max Drag Force %.4f" % max_drag
+        print "Min Lift Force %.4f" % min_lift
+        print "Min Drag Force %.4f" % min_drag
 
 
-        print "Mean Lift force %.4f" % (0.5*(max(Lift) + min(Lift) ))
-        print "Mean Drag force %.4f" % (0.5*(max(Drag) + min(Drag) ))
+        print "Mean Lift force %.4f" % mean_lift
+        print "Mean Drag force %.4f" % mean_drag
 
-        print "Lift amplitude %.4f" % (0.5*(max(Lift) - min(Lift) ))
-        print "Drag amplitude %.4f" % (0.5*(max(Drag) - min(Drag) ))
+        print "Lift amplitude %.4f" % lift_amp
+        print "Drag amplitude %.4f" % drag_amp
+
+        count = 1
+        while os.path.exists("./experiments/cfd3/"+str(count)):
+            count+= 1
+
+        os.makedirs("./experiments/cfd3/"+str(count))
+
+        print("Creating report file ./experiments/cfd3/"+str(count)+"/report.txt")
+        name = "./experiments/cfd3/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
+        f = open(name, 'w')
+        f.write("""CFD3 Turek parameters\nc
+Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\np_deg = %(p_deg)g\nsolver = %(solver)s\n""" % vars())
+        f.write("""Runtime = %f \n\n""" % run_time)
+
+        f.write("""Max Lift Force = %(max_lift)g\n
+Min Lift Force = %(min_lift)g\n
+Max Drag Force = %(max_drag)g\n
+Min Drag Force = %(min_drag)g\n
+Mean Lift Force = %(mean_lift)g\n
+Mean Drag Force = %(mean_drag)g\n
+Amplitude Lift Force = %(lift_amp)g\n
+Amplitude Drag Force = %(drag_amp)g\n""" %vars())
+
+        f.close()
+
 
 
     if fig == True:
@@ -354,7 +390,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
             plt.ylabel("Lift force Newton")
             plt.plot(time, Lift, label='dt  %g' % dt)
             plt.legend(loc=4)
-            plt.savefig("lift_" + solver + "_DOF=" + str(U_dof) + "_.png")
+            plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png")
 
             plt.figure(2)
             plt.title("DRAG CFD3\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
@@ -363,20 +399,20 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
             plt.ylabel("Drag force Newton")
             plt.plot(time, Drag, label='dt  %g' % dt)
             plt.legend(loc=4)
-            plt.savefig("drag_" + solver + "_DOF=" + str(U_dof) + "_.png")
+            plt.savefig("./experiments/cfd3/"+str(count)+"/drag.png")
             #plt.show()
 
 
 
 
-for m in ["turek2.xml"]:
+for m in ["turek1.xml"]:
     mesh = Mesh(m)
     #mesh = refine(mesh)
     for t in dt:
         #mesh = refine(mesh)
         #mesh = refine(mesh)
         Drag = []; Lift = []; time = []
-        fluid(mesh, T, t, solver, steady, fig, v_deg, p_deg)
+        fluid(mesh, T, t, solver, steady, fig, v_deg, p_deg, m)
 #if MPI.rank(mpi_comm_world()) == 0:
 #    np.savetxt("Lift.txt", Lift, delimiter=',')
 #    np.savetxt("Drag.txt", Drag, delimiter=',')
