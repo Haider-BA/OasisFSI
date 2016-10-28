@@ -175,8 +175,8 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
     		sol  = NonlinearVariationalSolver(problem)
 
     		prm = sol.parameters
-    		prm['newton_solver']['absolute_tolerance'] = 1E-10
-    		prm['newton_solver']['relative_tolerance'] = 1E-10
+    		prm['newton_solver']['absolute_tolerance'] = 1E-7
+    		prm['newton_solver']['relative_tolerance'] = 1E-7
     		prm['newton_solver']['maximum_iterations'] = 10
     		prm['newton_solver']['relaxation_parameter'] = 1.0
 
@@ -313,7 +313,7 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
         	eps = 10
         	k_iter = 0
         	max_iter = 20
-        	while eps > 1E-6 and k_iter < max_iter:
+        	while eps > 1E-7 and k_iter < max_iter:
         		solve(lhs(F) == rhs(F), up, bcs)
 
         		u_, p_ = up.split(True)
@@ -369,11 +369,11 @@ def fluid(mesh, T, dt, solver, steady, fig, v_deg, p_deg):
 
 
 
-for m in ["turek1.xml"]:
+for m in ["turek2.xml"]:
     mesh = Mesh(m)
     #mesh = refine(mesh)
     for t in dt:
-        mesh = refine(mesh)
+        #mesh = refine(mesh)
         #mesh = refine(mesh)
         Drag = []; Lift = []; time = []
         fluid(mesh, T, t, solver, steady, fig, v_deg, p_deg)
