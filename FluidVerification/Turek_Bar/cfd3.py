@@ -185,8 +185,8 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
 
 
     		prm = sol.parameters
-    		prm['newton_solver']['absolute_tolerance'] = 1E-7
-    		prm['newton_solver']['relative_tolerance'] = 1E-7
+    		prm['newton_solver']['absolute_tolerance'] = 1E-10
+    		prm['newton_solver']['relative_tolerance'] = 1E-10
     		prm['newton_solver']['maximum_iterations'] = 10
     		prm['newton_solver']['relaxation_parameter'] = 1.0
 
