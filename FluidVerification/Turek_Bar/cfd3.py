@@ -149,7 +149,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
         print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
         print "DOF = %f,  cells = %f" % (U_dof, mesh_cells)
 
-
+    tic()
     if solver == "Newton":
     	up = Function(VQ)
     	u, p = split(up)
@@ -165,6 +165,16 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
             + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
             - eta*div(u)*dx
 
+        J = derivative(F, up)
+
+        problem = NonlinearVariationalProblem(F, up, bcs, J)
+        sol  = NonlinearVariationalSolver(problem)
+
+        prm = sol.parameters
+        prm['newton_solver']['absolute_tolerance'] = 1E-10
+        prm['newton_solver']['relative_tolerance'] = 1E-10
+        prm['newton_solver']['maximum_iterations'] = 10
+        prm['newton_solver']['relaxation_parameter'] = 1.0
 
     	if MPI.rank(mpi_comm_world()) == 0:
     		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
@@ -175,21 +185,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     		if t < 2:
     			inlet.t = t;
     		if t >= 2:
-    			inlet = inlet_steady;
-
-    		J = derivative(F, up)
-
-    		problem = NonlinearVariationalProblem(F, up, bcs, J)
-    		sol  = NonlinearVariationalSolver(problem)
-
-
-
-    		prm = sol.parameters
-    		prm['newton_solver']['absolute_tolerance'] = 1E-10
-    		prm['newton_solver']['relative_tolerance'] = 1E-10
-    		prm['newton_solver']['maximum_iterations'] = 10
-    		prm['newton_solver']['relaxation_parameter'] = 1.0
-
+    			inlet.t = 2;
 
     		sol.solve()
 
@@ -205,7 +201,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     		Lift.append(lift)
 
     		t += dt
-    tic()
+
     if solver == "Newton2":
 
         up = Function(VQ)
