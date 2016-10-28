@@ -177,8 +177,6 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
         up0 = Function(VQ)
         u0, p0 = split(up0)
 
-        theta = 1.0
-
         F = (rho*theta*inner(dot(grad(u), u), phi) + rho*(1 - theta)*inner(dot(grad(u0), u0), phi)   \
         + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi) ) )*dx   \
         + eta*div(u)*dx
@@ -247,8 +245,6 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
 
         u0 = Function(V); p0 = Function(Q)
         up = Function(VQ)
-
-        theta = 0.5
 
         if MPI.rank(mpi_comm_world()) == 0:
             print "Starting Piccard iterations"
