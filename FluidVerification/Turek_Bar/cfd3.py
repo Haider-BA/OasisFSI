@@ -84,6 +84,8 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
     ,"0"), t = 0.0, Um = Um, H = H)
 
+    inlet_steady = Expression(("1.5*Um*x[1]*(H - x[1]) / (pow((H/2.0), 2)) "\
+    ,"0"), Um = Um, H = H)
 
     u_inlet = DirichletBC(VQ.sub(0), inlet, boundaries, 2)
     nos_geo = DirichletBC(VQ.sub(0), ((0, 0)), boundaries, 1)
@@ -162,7 +164,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
 
 	#WATCH CONVECTIVE TERM FOR LINEARIZATION!!
         F = (rho/k)*inner(u - u0, phi)*dx +\
-			  rho*inner(grad(u0)*u, phi)*dx + \
+			  rho*inner(grad(u)*u, phi)*dx + \
 			  mu*inner(grad(u), grad(phi))*dx - \
 			  div(phi)*p*dx - eta*div(u)*dx
 
@@ -176,7 +178,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
         prm['nonlinear_solver'] = 'newton'
         prm['newton_solver']['absolute_tolerance'] = 1E-10
         prm['newton_solver']['relative_tolerance'] = 1E-10
-        prm['newton_solver']['maximum_iterations'] = 40
+        prm['newton_solver']['maximum_iterations'] = 100
         prm['newton_solver']['relaxation_parameter'] = 1.0
         prm['newton_solver']['linear_solver'] = 'mumps'
 
@@ -189,7 +191,8 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     		if t < 2:
     			inlet.t = t;
     		if t >= 2:
-    			inlet.t = 2;
+    			#inlet.t = 2;
+                inlet = inlet_steady;
 
     		sol.solve()
 
