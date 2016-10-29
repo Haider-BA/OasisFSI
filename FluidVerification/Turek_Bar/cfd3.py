@@ -161,9 +161,10 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
         #    + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
         #    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
         #    - eta*div(u)*dx
-
+	
+	#WATCH CONVECTIVE TERM FOR LINEARIZATION!!
         F = (rho/k)*inner(u - u0, phi)*dx +\
-			  rho*inner(grad(u)*u, phi)*dx + \
+			  rho*inner(grad(u0)*u, phi)*dx + \
 			  mu*inner(grad(u), grad(phi))*dx - \
 			  div(phi)*p*dx - eta*div(u)*dx
 
@@ -194,7 +195,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     		u_, p_ = up.split(True)
                 #vel_file << u_
     		up0.assign(up)
-
+		#u0.assign(u_)
 
     		drag, lift =integrateFluidStress(p_, u_)
     		if MPI.rank(mpi_comm_world()) == 0:
