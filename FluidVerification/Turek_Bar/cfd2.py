@@ -152,13 +152,20 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
         solver  = NonlinearVariationalSolver(problem)
 
         prm = solver.parameters
+        #info(prm,True)  #get full info on the parameters
+        #list_linear_solver_methods()#Linear solvers
+        
+        prm['nonlinear_solver'] = 'newton'
         prm['newton_solver']['absolute_tolerance'] = 1E-6
         prm['newton_solver']['relative_tolerance'] = 1E-6
         prm['newton_solver']['maximum_iterations'] = 10
         prm['newton_solver']['relaxation_parameter'] = 1.0
+        prm['newton_solver']['linear_solver'] = 'mumps'
 
-
+        tic()
         solver.solve()
+        print "Solving time %g" % toc()
+
         u_ , p_ = up.split(True)
 
         drag, lift = integrateFluidStress(p_, u_)

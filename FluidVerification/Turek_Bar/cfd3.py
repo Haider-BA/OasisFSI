@@ -103,9 +103,6 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     phi, eta = TestFunctions(VQ)
     u ,p = TrialFunctions(VQ)
 
-    u0 = Function(V)
-    u1 = Function(V)
-
     k = Constant(dt)
     t = 0.0
 
@@ -151,8 +148,9 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     	up = Function(VQ)
     	u, p = split(up)
 
-        up0 = Function(VQ)
-    	u0, p0 = split(up)
+        #up0 = Function(VQ)
+    	#u0, p0 = split(up)
+        u0 = Function(V)
 
         #theta = 1;
     	# Fluid variational form
@@ -161,7 +159,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
         #    + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
         #    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
         #    - eta*div(u)*dx
-	
+
 	#WATCH CONVECTIVE TERM FOR LINEARIZATION!!
         F = (rho/k)*inner(u - u0, phi)*dx +\
 			  rho*inner(grad(u0)*u, phi)*dx + \
@@ -174,10 +172,13 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
         sol  = NonlinearVariationalSolver(problem)
 
         prm = sol.parameters
+        #info(prm,True)  #get full info on the parameters
+        prm['nonlinear_solver'] = 'newton'
         prm['newton_solver']['absolute_tolerance'] = 1E-10
         prm['newton_solver']['relative_tolerance'] = 1E-10
-        prm['newton_solver']['maximum_iterations'] = 10
+        prm['newton_solver']['maximum_iterations'] = 40
         prm['newton_solver']['relaxation_parameter'] = 1.0
+        prm['newton_solver']['linear_solver'] = 'mumps'
 
     	if MPI.rank(mpi_comm_world()) == 0:
     		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
@@ -193,9 +194,9 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     		sol.solve()
 
     		u_, p_ = up.split(True)
-                #vel_file << u_
-    		up0.assign(up)
-		#u0.assign(u_)
+            #vel_file << u_
+    		#up0.assign(up)
+                u0.assign(u_)
 
     		drag, lift =integrateFluidStress(p_, u_)
     		if MPI.rank(mpi_comm_world()) == 0:

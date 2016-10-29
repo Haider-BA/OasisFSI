@@ -86,7 +86,7 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
 
     p_out = DirichletBC(VQ.sub(1), 0, boundaries, 3)
 
-    bcs = [u_inlet, nos_geo, nos_wall]
+    bcs = [u_inlet, nos_geo, nos_wall, p_out]
     bcs2 = [u_inlet2, nos_geo, nos_wall]
 
 
@@ -139,9 +139,13 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
         up0 = Function(VQ)
         u0, p0 = split(up0)
 
-        F = (rho*theta*inner(dot(grad(u), u), phi) + rho*(1 - theta)*inner(dot(grad(u0), u0), phi)   \
-        + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi) ) )*dx   \
-        - eta*div(u)*dx
+        #F = (rho*theta*inner(dot(grad(u), u), phi) + rho*(1 - theta)*inner(dot(grad(u0), u0), phi)   \
+        #+ inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi) ) )*dx   \
+        #- eta*div(u)*dx
+
+        F =   rho*inner(grad(u)*u, phi)*dx + \
+        mu*inner(grad(u), grad(phi))*dx - \
+        div(phi)*p*dx - eta*div(u)*dx
 
         if MPI.rank(mpi_comm_world()) == 0:
             print "Starting Newton iterations"
@@ -152,13 +156,18 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
         solver  = NonlinearVariationalSolver(problem)
 
         prm = solver.parameters
+        prm['nonlinear_solver'] = 'newton'
+        #info(prm,True)  #get full info on the parameters
+        #list_linear_solver_methods()#Linear solvers
         prm['newton_solver']['absolute_tolerance'] = 1E-6
         prm['newton_solver']['relative_tolerance'] = 1E-6
         prm['newton_solver']['maximum_iterations'] = 10
         prm['newton_solver']['relaxation_parameter'] = 1.0
+        prm['newton_solver']['linear_solver'] = 'mumps'
 
-
+        tic()
         solver.solve()
+        print "Solving time %g" % toc()
         u_ , p_ = up.split(True)
 
         drag, lift = integrateFluidStress(p_, u_)
