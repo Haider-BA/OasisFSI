@@ -191,8 +191,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     		if t < 2:
     			inlet.t = t;
     		if t >= 2:
-    			#inlet.t = 2;
-                inlet = inlet_steady;
+    			inlet = inlet_steady;
 
     		sol.solve()
 
