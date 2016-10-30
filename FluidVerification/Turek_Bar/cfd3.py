@@ -159,16 +159,31 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         tic()
 
 
+<<<<<<< HEAD
 
         #theta = 1;
     	# Fluid variational form
 	"""
+=======
+        #up0 = Function(VQ)
+    	#u0, p0 = split(up)
+        u0 = Function(V)
+
+        #theta = 1;
+    	# Fluid variational form
+
+        #F = ( rho/k*inner(u - u0, phi) \
+        #    + rho*(theta*inner(grad(u)*u, phi) + (1 - theta)*inner(grad(u0)*u0, phi) ) \
+        #    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
+        #    - eta*div(u)*dx
+	
+>>>>>>> 78e2c418c39098028e5d9efd76f62c18c83d7931
 	#WATCH CONVECTIVE TERM FOR LINEARIZATION!!
         F = (rho/k)*inner(u - u0, phi)*dx +\
 			  rho*inner(grad(u)*u, phi)*dx + \
 			  mu*inner(grad(u), grad(phi))*dx - \
 			  div(phi)*p*dx - eta*div(u)*dx
-	"""
+
         J = derivative(F, up)
 
         problem = NonlinearVariationalProblem(F, up, bcs, J)
@@ -198,8 +213,8 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
 
     		u_, p_ = up.split(True)
             #vel_file << u_
-    		up0.assign(up)
-                #u0.assign(u_)
+    		#up0.assign(up)
+                u0.assign(u_)
 
     		drag, lift =integrateFluidStress(p_, u_)
     		if MPI.rank(mpi_comm_world()) == 0:
