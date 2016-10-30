@@ -21,7 +21,7 @@ group.add_argument("-T",      type=float, help="Set degree of pressure          
 group.add_argument("-dt",      type=float, help="Set degree of pressure                     --> Default=1", default=0.01)
 group.add_argument("-p_deg",  type=int, help="Set degree of pressure                     --> Default=1", default=1)
 group.add_argument("-v_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=2)
-group.add_argument("-theta",  type=float, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=2)
+group.add_argument("-theta",  type=float, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=1)
 group.add_argument("-r", "--refiner", action="count", help="Mesh-refiner using built-in FEniCS method refine(Mesh)")
 group2 = parser.add_argument_group('Solvers')
 group2.add_argument("-solver", help="Newton   -- Fenics built-in module \n"
@@ -150,24 +150,24 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
     	up = Function(VQ)
     	u, p = split(up)
 
-        #up0 = Function(VQ)
-    	#u0, p0 = split(up)
-        u0 = Function(V)
+        up0 = Function(VQ)
+    	u0, p0 = split(up)
+        #u0 = Function(V)
 
         #theta = 1;
     	# Fluid variational form
 
-        #F = ( rho/k*inner(u - u0, phi) \
-        #    + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
-        #    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
-        #    - eta*div(u)*dx
-
+        F = ( rho/k*inner(u - u0, phi) \
+            + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
+            + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0) , grad(phi)) ) *dx \
+            - eta*div(u)*dx
+	"""
 	#WATCH CONVECTIVE TERM FOR LINEARIZATION!!
         F = (rho/k)*inner(u - u0, phi)*dx +\
 			  rho*inner(grad(u)*u, phi)*dx + \
 			  mu*inner(grad(u), grad(phi))*dx - \
 			  div(phi)*p*dx - eta*div(u)*dx
-
+	"""
         J = derivative(F, up)
 
         problem = NonlinearVariationalProblem(F, up, bcs, J)
@@ -197,8 +197,8 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m):
 
     		u_, p_ = up.split(True)
             #vel_file << u_
-    		#up0.assign(up)
-                u0.assign(u_)
+    		up0.assign(up)
+                #u0.assign(u_)
 
     		drag, lift =integrateFluidStress(p_, u_)
     		if MPI.rank(mpi_comm_world()) == 0:
