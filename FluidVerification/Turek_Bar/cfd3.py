@@ -370,7 +370,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         f = open(name, 'w')
         f.write("""CFD3 Turek parameters\n
 Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\np_deg = %(p_deg)g\n"""
-"""solver = %(solver)s\ntheta_scheme=%(theta).1f\nDiscretization=%(discr)s\n""" % vars())
+"""solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n""" % vars())
         f.write("""Runtime = %f \n\n""" % run_time)
 
         f.write("""Max Lift Force = %(max_lift)g\n
@@ -386,6 +386,10 @@ Amplitude Drag Force = %(drag_amp)g\n""" %vars())
 
 
     if MPI.rank(mpi_comm_world()) == 0:
+        np.savetxt("./experiments/cfd3/"+str(count)+"/Lift.txt", Lift, delimiter=',')
+        np.savetxt("./experiments/cfd3/"+str(count)+"/Drag.txt", Drag, delimiter=',')
+        np.savetxt("./experiments/cfd3/"+str(count)+"/time.txt", time, delimiter=',')
+
         plt.figure(1)
         plt.title("LIFT CFD3 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
         % (Re, U_dof, mesh_cells, T, dt) )
@@ -415,8 +419,3 @@ else:
     for i in range(args.refiner):
         mesh = refine(mesh)
     fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr)
-
-#if MPI.rank(mpi_comm_world()) == 0:
-#    np.savetxt("Lift.txt", Lift, delimiter=',')
-#    np.savetxt("Drag.txt", Drag, delimiter=',')
-#    np.savetxt("time.txt", time, delimiter=',')
