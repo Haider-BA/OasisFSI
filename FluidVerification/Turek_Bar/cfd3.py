@@ -145,13 +145,13 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
     	u0, p0 = split(up0)
 
         if discr == "keep":
-            F = rho*inner(u - u0, phi) *dx \
-                +rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) )*dx \
-                + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi))  *dx \
-                - eta*div(u)*dx
+            F = rho/k*inner(u - u0, phi) *dx \
+            + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) )*dx \
+            + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi))  *dx \
+            - eta*div(u)*dx
 
         if discr == "split":
-    	    F = rho*inner(u - u0, phi)*dx \
+    	    F = rho/k*inner(u - u0, phi)*dx \
             + rho*inner(theta*grad(u)*u + (1 -theta)*grad(u0)*u0, phi) *dx \
             + mu*inner(theta*grad(u) + (1-theta)*grad(u0) , grad(phi))*dx  \
     	    + (theta*div(phi)*p + (1 - theta)*div(phi)*p0)*dx - eta*div(u)*dx
