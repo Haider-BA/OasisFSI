@@ -151,10 +151,10 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
                 - eta*div(u)*dx
 
         if discr == "split":
-    		F = rho*inner(u - u0, phi)*dx
-                + rho*inner(theta*grad(u)*u + (1 -theta)*grad(u0)*u0, phi) *dx \
-    			+ mu*inner(theta*grad(u) + (1-theta)*grad(u0) , grad(phi))*dx  \
-    			+ (theta*div(phi)*p + (1 - theta)*div(phi)*p0)*dx - eta*div(u)*dx
+    	    F = rho*inner(u - u0, phi)*dx \
+            + rho*inner(theta*grad(u)*u + (1 -theta)*grad(u0)*u0, phi) *dx \
+            + mu*inner(theta*grad(u) + (1-theta)*grad(u0) , grad(phi))*dx  \
+    	    + (theta*div(phi)*p + (1 - theta)*div(phi)*p0)*dx - eta*div(u)*dx
 
 
     if solver == "Newton":
