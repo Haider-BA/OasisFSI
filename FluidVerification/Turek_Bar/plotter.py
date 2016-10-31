@@ -25,7 +25,7 @@ for i in range(1,count):
     print '[%s]' % ', '.join(map(str, info))
     #print count
 
-selected = [4]
+selected = [1]
 def plot(selected):
     count = 1
     for i in selected:
@@ -53,5 +53,5 @@ def plot(selected):
         #plt.legend(loc=4)
         #plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png")
         count += 1
-plot(selected)
-plt.show()
+#plot(selected)
+#plt.show()
