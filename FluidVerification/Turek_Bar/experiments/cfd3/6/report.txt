@@ -1,4 +1,4 @@
-CFD3 Turek parameters
+cCFD3 Turek parameters
 
 Re = 200 
 mesh = turek1.xml
