@@ -78,7 +78,7 @@ boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
 boundary_parts.set_all(0)
 Bar_area.mark(boundary_parts, 1)
 
-file = File("/Users/Andreas/Desktop/test.xml")
+file = File("test.pvd")
 file << boundary_parts
 
 #velocity conditions
