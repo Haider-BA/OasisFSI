@@ -36,13 +36,14 @@ def display_runs(count, filter):
                     check += 1
             if check == len(filt):
                 print '[%s]' % ', '.join(map(str, info))
-                data_list.append(data_dict)
-            #break
-        elif len(filt) == 0:
+                data_list.append(dict(data_dict))
+
+        else:
             print '[%s]' % ', '.join(map(str, info))
-            data_list.append(data_dict)
+            data_list.append(dict(data_dict))
+
     return data_list
-            #print count
+
 
 
 def plot(sel, data_list):
@@ -58,13 +59,13 @@ def plot(sel, data_list):
         plt.figure(i)
         plt.subplot(221)
         plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-        % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
-        int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))            #% (sel[count],  data_list[sel[count]-1][-1], data_list[sel[count]-1][2],\
+        % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+        int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
         #int(data_list[sel[count]-1][6]), float(data_list[sel[count]-1][10]), float(data_list[sel[count]-1][14]) ))
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift)
-        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
             plt.axis([4, 12, -540, 540])
@@ -74,18 +75,12 @@ def plot(sel, data_list):
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
-        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
             plt.axis([11, 12, 425, 445])
 
         count +=1
-        print "LEN SEL", len(sel)
-        print "data_list", len(data_list)
-        print "TEST"
-        print sel[count]
-        #print sel[count+1]
-        print "GOT HERE"
 
         print "Getting stuff from", sel[count]
 
@@ -96,12 +91,14 @@ def plot(sel, data_list):
 
         plt.subplot(222)
         plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-        % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
-        int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
+        % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+        int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
+        #% (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
+        #int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift)
-        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
             plt.axis([4, 12, -540, 540])
@@ -116,7 +113,7 @@ def plot(sel, data_list):
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton\nTEst\nthis")
         plt.plot(time, Drag)
-        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
             plt.axis([11, 12, 425, 445])
@@ -128,11 +125,14 @@ def plot(sel, data_list):
 
 
     if len(sel) % 2 != 0:
+        count = -1
+        print "Getting stuff from", sel[count]
+
         time = np.loadtxt("./experiments/cfd3/"+str(sel[-1])+"/time.txt", delimiter=',')
         Lift = np.loadtxt("./experiments/cfd3/"+str(sel[-1])+"/Lift.txt", delimiter=',')
         Drag = np.loadtxt("./experiments/cfd3/"+str(sel[-1])+"/Drag.txt", delimiter=',')
         plt.figure(3)
-        count = -1
+
         plt.subplot(221)
         plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
         % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
@@ -151,7 +151,7 @@ def plot(sel, data_list):
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
-        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+        if float(data_list[sel[count]]["dt"]) == 0.01 and float(data_list[sel[count]]["theta_scheme"]) == 1.0:
             print
         else:
             plt.axis([11, 12, 425, 445])
@@ -188,6 +188,7 @@ if s == "filter":
 if s == "all":
     filt = {}
     data_list = display_runs(count, filt)
+    print data_list[0]
     s = raw_input("Enter one or several cases, separated by space: ")
     selected = map(int, s.split())
     plot(selected, data_list)
