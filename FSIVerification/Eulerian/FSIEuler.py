@@ -61,9 +61,23 @@ H = 0.41
 L = 2.5
 D = 0.1
 
+# AREAS
+
+Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
+
+domains = CellFunction("size_t",mesh)
+domains.set_all(1)
+Bar_area.mark(domains,2) #Overwrites structure domain
+dx = Measure("dx",subdomain_data=domains)
+#plot(domains,interactive = True)
+
 # t = 2.0 implies steady flow
 inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
 ,"0"), t = 0.0, Um = Um, H = H)
+
+boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
+boundary_parts.set_all(0)
+Bar_area.mark(boundary_parts, 1)
 
 #velocity conditions
 u_inlet  = DirichletBC(VVQ.sub(0), inlet, boundaries, 3)
@@ -80,19 +94,14 @@ d_barwall = DirichletBC(VVQ.sub(1),((0, 0)), boundaries, 7)
 
 #Pressure Conditions
 p_out = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
+p_barwall = DirichletBC(VVQ.sub(2), 0, boundaries, 7)
+p_struc = DirichletBC(VVQ.sub(2), 0, boundary_parts, 1)
 
+print "MADE IT"
 #Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
-       d_inlet, d_wall, d_circ, d_barwall, d_outlet]
-# AREAS
-
-Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
-
-domains = CellFunction("size_t",mesh)
-domains.set_all(1)
-Bar_area.mark(domains,2) #Overwrites structure domain
-dx = Measure("dx",subdomain_data=domains)
-plot(domains,interactive = True)
+       d_inlet, d_wall, d_circ, d_barwall, d_outlet,\
+       p_out, p_barwall, p_struc]
 
 
 # TEST TRIAL FUNCTIONS
@@ -122,6 +131,7 @@ E_1 = 1.4E6
 lamda = nu_s*2*mu_s/(1-2*nu_s)
 g = Constant((0,-2*rho_s))
 dt = 0.001
+T = 0.01
 k = Constant(dt)
 
 Re = Um*D/nu_f
@@ -170,15 +180,30 @@ d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"
 #dynamic = inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) + inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
 #dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
 dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
+
 F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation \
   + d_smooth + dynamic
 
 t = 0
-T = 10
+
 time = []; dis_x = []; dis_y = []
 vel_file = File("./velocity/velocity.pvd")
 #vel_file << u0
+
+J = derivative(F, udp)
+
+problem = NonlinearVariationalProblem(F, udp, bcs, J)
+sol  = NonlinearVariationalSolver(problem)
+
+prm = sol.parameters
+#info(prm,True)  #get full info on the parameters
+prm['nonlinear_solver'] = 'newton'
+prm['newton_solver']['absolute_tolerance'] = 1E-10
+prm['newton_solver']['relative_tolerance'] = 1E-10
+prm['newton_solver']['maximum_iterations'] = 100
+prm['newton_solver']['relaxation_parameter'] = 1.0
+prm['newton_solver']['linear_solver'] = 'mumps'
 while t <= T:
     print "Time %f" % t
     time.append(t)
@@ -188,86 +213,40 @@ while t <= T:
     if t >= 2:
         inlet.t = 2;
 
-    dw = TrialFunction(VVQ)
-    dF_W = derivative(F, udp, dw)                # Jacobi
-
-    atol, rtol = 1e-7, 1e-6                  # abs/rel tolerances
-    lmbda      = 1.0                            # relaxation parameter
-    WD_inc      = Function(VVQ)                  # residual
-    bcs_u      = []                             # residual is zero on boundary, (Implemented if DiriBC != 0)
-    for i in bcs:
-        i.homogenize()
-        bcs_u.append(i)
-    Iter      = 0                               # number of iterations
-    residual   = 1                              # residual (To initiate)
-    rel_res    = residual                       # relative residual
-    max_it    = 100                             # max iterations
-    #ALTERNATIVE TO USE IDENT_ZEROS()
-    a = lhs(dF_W) + lhs(F);
-    L = rhs(dF_W) + rhs(F);
-    ##NEWTON TALK! GOOD SOURCE
-    #https://fenicsproject.org/qa/536/newton-method-programmed-manually
-    while rel_res > rtol and Iter < max_it:
-        #ALTERNATIVE TO USE IDENT_ZEROS()
-        #A = assemble(a); b = assemble(L)
-        A, b = assemble_system(dF_W, -F, bcs_u)
-        A.ident_zeros()
-        [bc.apply(A,b) for bc in bcs_u]
-        solve(A,WD_inc.vector(),b)
-
-        #WORKS!!
-        #A, b = assemble_system(dG_W, -G, bcs_u)
-        #solve(A, WD_inc.vector(), b)
-        rel_res = norm(WD_inc, 'l2')
-
-        #a = assemble(F)
-        for bc in bcs_u:
-            bc.apply(A)
-
-        udp.vector()[:] += lmbda*WD_inc.vector()
-        print "iteration %d, relative error %g" % (Iter, rel_res)
-        Iter += 1
-
-
-    for bc in bcs:
-        bc.apply(udp.vector())
+    sol.solve()
 
     u, d, p  = udp.split(True)
 
     u0, d0, p0  = udp0.split(True)
 
     d_disp.vector()[:] = d.vector()[:] - d0.vector()[:]
+
     ALE.move(mesh, d_disp)
     mesh.bounding_box_tree().build(mesh)
     udp0.assign(udp)
 
-    vel_file << u
+    #vel_file << u
 
-    #dis_x.append(d(coord)[0])
-    #dis_y.append(d(coord)[1])
+    dis_x.append(d(coord)[0])
+    dis_y.append(d(coord)[1])
 
     t += dt
 
+if MPI.rank(mpi_comm_world()) == 0:
+    #np.savetxt("./experiments/cfd3/"+str(count)+"/Lift.txt", Lift, delimiter=',')
+    #np.savetxt("./experiments/cfd3/"+str(count)+"/Drag.txt", Drag, delimiter=',')
+    #np.savetxt("./experiments/cfd3/"+str(count)+"/time.txt", time, delimiter=',')
 
+    plt.figure(1)
+    plt.title("Displacement x")
+    plt.xlabel("Time Seconds")
+    plt.ylabel("x")
+    plt.plot(time, dis_x)
+    plt.savefig("dis_x.png")
 
-plt.figure(1)
-plt.title("LIFT \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
-plt.xlabel("Time Seconds")
-plt.ylabel("Lift force Newton")
-plt.plot(time, Lift, label='dt  %g' % dt)
-plt.legend(loc=4)
-plt.savefig("lift.png")
-
-plt.figure(2)
-plt.title("DRAG \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
-plt.xlabel("Time Seconds")
-plt.ylabel("Drag force Newton")
-plt.plot(time, Drag, label='dt  %g' % dt)
-plt.legend(loc=4)
-plt.savefig("drag.png")
-#plt.show()
-
-
-#drag, lift = integrateFluidStress(p_, u_)
-#print('Drag = %f, Lift = %f' \
-	#%  (drag, lift))
+    plt.figure(2)
+    plt.title("Displacement y" )
+    plt.xlabel("Time Seconds")
+    plt.ylabel("y")
+    plt.plot(time, dis_y)
+    plt.savefig("dix_y.png")

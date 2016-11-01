@@ -68,7 +68,7 @@ def plot(sel, data_list):
         if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
-            plt.axis([4, 12, -540, 540])
+            plt.axis([1, 12, -540, 540])
 
         plt.subplot(223)
         plt.title("Drag CFD3, case = %d"  % (sel[count]))
@@ -78,7 +78,7 @@ def plot(sel, data_list):
         if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
-            plt.axis([11, 12, 425, 445])
+            plt.axis([9, 9.6, 430, 450])
 
         count +=1
 
@@ -101,7 +101,7 @@ def plot(sel, data_list):
         if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
-            plt.axis([4, 12, -540, 540])
+            plt.axis([1, 12, -540, 540])
         #plt.legend(loc=4)
         #plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png")
 
@@ -116,7 +116,7 @@ def plot(sel, data_list):
         if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
             print
         else:
-            plt.axis([11, 12, 425, 445])
+            plt.axis([9, 9.6, 430, 450])
 
         #plt.legend(loc=4)
         #plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png"
@@ -154,7 +154,7 @@ def plot(sel, data_list):
         if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
             print
         else:
-            plt.axis([11, 12, 425, 445])
+            plt.axis([9, 9.6, 430, 450])
 
 
 count = 1
@@ -191,16 +191,5 @@ if s == "all":
     s = raw_input("Enter one or several cases, separated by space: ")
     selected = map(int, s.split())
     plot(selected, data_list)
-"""FIX
-Enter one or several cases, separated by space: 2 8 11 12
-Getting stuff from 2
-Getting stuff from 8
-Traceback (most recent call last):
-  File "plotter.py", line 186, in <module>
-    plot(selected, data_list)
-  File "plotter.py", line 94, in plot
-    % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
-IndexError: list index out of range
-"""
 
 plt.show()
