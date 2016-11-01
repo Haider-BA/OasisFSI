@@ -151,7 +151,7 @@ def plot(sel, data_list):
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
-        if float(data_list[sel[count]]["dt"]) == 0.01 and float(data_list[sel[count]]["theta_scheme"]) == 1.0:
+        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
             print
         else:
             plt.axis([11, 12, 425, 445])
@@ -168,7 +168,7 @@ while os.path.exists("./experiments/cfd3/"+str(count)):
 
 s = raw_input("Welcome to experiment plotter. \n"
 "To see all experiments type: all\n"
-"To filter experiments type: filter\n"
+"To filter experiments type: filter\n (NOT WORKING, IN PROGRESS)"
 "Eks: from an experiment dataset [T, 14, dt, 0.01, theta_scheme, 1.0]\n"
 "Filter can be used by: T 14 dt 0.01\n"
 "[Re, DOF, T, dt, solver, theta_scheme, Discretization  ]\n "
@@ -188,10 +188,19 @@ if s == "filter":
 if s == "all":
     filt = {}
     data_list = display_runs(count, filt)
-    print data_list[0]
     s = raw_input("Enter one or several cases, separated by space: ")
     selected = map(int, s.split())
     plot(selected, data_list)
-
+"""FIX
+Enter one or several cases, separated by space: 2 8 11 12
+Getting stuff from 2
+Getting stuff from 8
+Traceback (most recent call last):
+  File "plotter.py", line 186, in <module>
+    plot(selected, data_list)
+  File "plotter.py", line 94, in plot
+    % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+IndexError: list index out of range
+"""
 
 plt.show()
