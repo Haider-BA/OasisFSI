@@ -46,7 +46,7 @@ def display_runs(count, filter):
 
 
 
-def plot(sel, data_list):
+def plot(sel, data_list, is_filtrated):
     count = 0
 
     for i in range(len(sel) / 2 ):
@@ -58,27 +58,51 @@ def plot(sel, data_list):
 
         plt.figure(i)
         plt.subplot(221)
-        plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-        % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
-        int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
-        #int(data_list[sel[count]-1][6]), float(data_list[sel[count]-1][10]), float(data_list[sel[count]-1][14]) ))
+        #plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+        #% (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+        #int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
+
+        if is_filtrated == False:
+            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+            int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
+
+            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([1, 12, -540, 540])
+
+        if is_filtrated == True:
+            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
+            int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
+
+            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([1, 12, -540, 540])
+
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift)
-        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-            print
-        else:
-            plt.axis([1, 12, -540, 540])
 
         plt.subplot(223)
         plt.title("Drag CFD3, case = %d"  % (sel[count]))
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
-        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-            print
-        else:
-            plt.axis([9, 9.6, 430, 450])
+
+        if is_filtrated == False:
+            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([9, 9.6, 430, 450])
+
+        if is_filtrated == True:
+            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([9, 9.6, 430, 450])
 
         count +=1
 
@@ -90,18 +114,37 @@ def plot(sel, data_list):
 
 
         plt.subplot(222)
-        plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-        % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
-        int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
+        #plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+        #% (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+        #int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
+
+        if is_filtrated == False:
+            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+            int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
+
+            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([1, 12, -540, 540])
+
+        if is_filtrated == True:
+            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
+            int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
+
+            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([1, 12, -540, 540])
+
+
         #% (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
         #int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift)
-        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-            print
-        else:
-            plt.axis([1, 12, -540, 540])
+        
         #plt.legend(loc=4)
         #plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png")
 
@@ -113,10 +156,18 @@ def plot(sel, data_list):
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton\nTEst\nthis")
         plt.plot(time, Drag)
-        if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-            print
-        else:
-            plt.axis([9, 9.6, 430, 450])
+
+        if is_filtrated == False:
+            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([9, 9.6, 430, 450])
+
+        if is_filtrated == True:
+            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
+                print
+            else:
+                plt.axis([9, 9.6, 430, 450])
 
         #plt.legend(loc=4)
         #plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png"
@@ -183,13 +234,15 @@ if s == "filter":
     data_list = display_runs(count, filt)
     s = raw_input("Enter one or several cases, separated by space: ")
     selected = map(int, s.split())
-    plot(selected, data_list)
+    is_filtrated = True
+    plot(selected, data_list, is_filtrated)
 
 if s == "all":
     filt = {}
     data_list = display_runs(count, filt)
     s = raw_input("Enter one or several cases, separated by space: ")
     selected = map(int, s.split())
-    plot(selected, data_list)
+    is_filtrated = False
+    plot(selected, data_list, is_filtrated)
 
 plt.show()

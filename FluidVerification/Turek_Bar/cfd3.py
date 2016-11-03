@@ -41,7 +41,6 @@ theta = args.theta
 discr = args.discr
 fig = False
 
-
 H = 0.41
 D = 0.1
 R = D/2.
@@ -50,41 +49,42 @@ nu = 0.001
 rho = 1000.
 mu = rho*nu
 
+
 def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
 
     n = FacetNormal(mesh)
     def sigma_f(p, u):
         return - p*Identity(2) + mu*(grad(u) + grad(u).T)
 
+    def eps(v):
+        return 0.5*(grad(v).T + grad(v))
+
     #MY WAY
     def integrateFluidStress(p, u):
-
       eps   = 0.5*(grad(u) + grad(u).T)
       sig   = -p*Identity(2) + 2.0*mu*eps
 
       traction  = dot(sig, -n)
 
-      forceX  = traction[0]*ds(1)
-      forceY  = traction[1]*ds(1)
-      fX      = assemble(forceX)
-      fY      = assemble(forceY)
+      forceX = traction[0]*ds(1)
+      forceY = traction[1]*ds(1)
+      fX = assemble(forceX)
+      fY = assemble(forceY)
 
       return fX, fY
 
     #plot(mesh,interactive=True)
     V = VectorFunctionSpace(mesh, "CG", v_deg) # Fluid velocity
-    Q  = FunctionSpace(mesh, "CG", p_deg)       # Fluid Pressure
+    Q  = FunctionSpace(mesh, "CG", p_deg)      # Fluid Pressure
 
     U_dof = V.dim()
     mesh_cells = mesh.num_cells()
-
-    VQ = MixedFunctionSpace([V,Q])
+    VQ = MixedFunctionSpace([V, Q])
 
     # BOUNDARIES
-
     Inlet  = AutoSubDomain(lambda x: "on_boundary" and near(x[0], 0))
     Outlet = AutoSubDomain(lambda x: "on_boundary" and near(x[0], 2.5))
-    Walls  = AutoSubDomain(lambda x: "on_boundary" and near(x[1],0) or near(x[1], 0.41))
+    Walls  = AutoSubDomain(lambda x: "on_boundary" and near(x[1], 0) or near(x[1], 0.41))
 
     boundaries = FacetFunction("size_t",mesh)
     boundaries.set_all(0)
@@ -92,20 +92,16 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
     Inlet.mark(boundaries, 2)
     Outlet.mark(boundaries, 3)
     Walls.mark(boundaries, 4)
-
-
     ds = Measure("ds", subdomain_data = boundaries)
     #plot(boundaries,interactive=True)
 
-    #BOUNDARY CONDITIONS
-
-
-    ##UNSTEADY FLOW
+    # BOUNDARY CONDITIONS
+    # UNSTEADY FLOW
     inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
-    ,"0"), t = 0.0, Um = Um, H = H)
+                            ,"0"), t = 0.0, Um = Um, H = H)
 
     inlet_steady = Expression(("1.5*Um*x[1]*(H - x[1]) / (pow((H/2.0), 2)) "\
-    ,"0"), Um = Um, H = H)
+                        ,"0"), Um = Um, H = H)
 
     u_inlet = DirichletBC(VQ.sub(0), inlet, boundaries, 2)
     nos_geo = DirichletBC(VQ.sub(0), ((0, 0)), boundaries, 1)
@@ -120,7 +116,6 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
     bcs = [u_inlet, nos_geo, nos_wall, p_out]
     bcs0 = [u_inlet0, nos_geo0, nos_wall0]
 
-
     # TEST TRIAL FUNCTIONS
     phi, eta = TestFunctions(VQ)
     u ,p = TrialFunctions(VQ)
@@ -133,16 +128,15 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
         print "DOF = %f,  cells = %f" % (U_dof, mesh_cells)
 
-
     if solver == "Newton" or solver == "Newton2":
         phi, eta = TestFunctions(VQ)
         up = Function(VQ)
-    	u, p = split(up)
-        #For non-theta
+        u, p = split(up)
+        # For non-theta
         #u0 = Function(V)
 
         up0 = Function(VQ)
-    	u0, p0 = split(up0)
+        u0, p0 = split(up0)
 
         if discr == "keep":
             F = rho/k*inner(u - u0, phi) *dx \
@@ -150,11 +144,18 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
             + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi))  *dx \
             - eta*div(u)*dx
 
+        if discr == "keep2":
+            F = rho/k*inner(u - u0, phi) *dx \
+            + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) )*dx \
+            + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(phi))*dx \
+            - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, phi)*ds \
+            - eta*div(u)*dx
+
         if discr == "split":
-    	    F = rho/k*inner(u - u0, phi)*dx \
+            F = rho/k*inner(u - u0, phi)*dx \
             + rho*inner(theta*grad(u)*u + (1 -theta)*grad(u0)*u0, phi) *dx \
             + mu*inner(theta*grad(u) + (1-theta)*grad(u0) , grad(phi))*dx  \
-    	    - (theta*div(phi)*p + (1 - theta)*div(phi)*p0)*dx\
+            - (theta*div(phi)*p + (1 - theta)*div(phi)*p0)*dx\
             - eta*div(u)*dx
 
 
@@ -171,34 +172,34 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         prm['nonlinear_solver'] = 'newton'
         prm['newton_solver']['absolute_tolerance'] = 1E-10
         prm['newton_solver']['relative_tolerance'] = 1E-10
-        prm['newton_solver']['maximum_iterations'] = 100
+        prm['newton_solver']['maximum_iterations'] = 10
         prm['newton_solver']['relaxation_parameter'] = 1.0
         prm['newton_solver']['linear_solver'] = 'mumps'
 
-    	if MPI.rank(mpi_comm_world()) == 0:
-    		print "Starting Newton iterations \nComputing for t = %g" % ( dt)
+        if MPI.rank(mpi_comm_world()) == 0:
+            print "Starting Newton iterations \nComputing for t = %g" % ( dt)
         vel_file = File("velocity/velocity.pvd")
-    	while t <= T:
-    		time.append(t)
+        while t <= T:
+            time.append(t)
 
-    		if t < 2:
-    			inlet.t = t;
-    		if t >= 2:
-    			inlet = inlet_steady;
+            if t < 2:
+                inlet.t = t;
+            if t >= 2:
+                inlet = inlet_steady;
 
-    		sol.solve()
+            sol.solve()
 
-    		u_, p_ = up.split(True)
+            u_, p_ = up.split(True)
             #vel_file << u_
-    		up0.assign(up)
+            up0.assign(up)
 
-    		drag, lift =integrateFluidStress(p_, u_)
-    		if MPI.rank(mpi_comm_world()) == 0:
-    		  print "Time: ",t ," drag: ",drag, "lift: ",lift
-    		Drag.append(drag)
-    		Lift.append(lift)
+            drag, lift =integrateFluidStress(p_, u_)
+            if MPI.rank(mpi_comm_world()) == 0:
+              print "Time: ",t ," drag: ",drag, "lift: ",lift
+            Drag.append(drag)
+            Lift.append(lift)
 
-    		t += dt
+            t += dt
 
     if solver == "Newton2":
         tic()
@@ -209,18 +210,12 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         up0 = Function(VQ)
         u0, p0 = split(up0)
 
-        #theta = 1.0
-
-        F = (rho*theta*inner(dot(grad(u), u), phi) + rho*(1 - theta)*inner(dot(grad(u0), u0), phi)   \
-        + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi) ) )*dx   \
-        + eta*div(u)*dx
-
         dw = TrialFunction(VQ)
 
         atol, rtol = 1e-7, 1e-7                  # abs/rel tolerances
-        lmbda      = 1.0                            # relaxation parameter
-        WD_inc      = Function(VQ)                  # residual
-        Iter      = 0                               # number of iterations
+        lmbda = 1.0                            # relaxation parameter
+        WD_inc = Function(VQ)                  # residual
+        Iter = 0                               # number of iterations
         residual   = 1                              # residual (To initiate)
         rel_res    = residual                       # relative residual
         max_it    = 100                              # max iterations
@@ -234,7 +229,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
             bcs_u.append(i)
 
         if MPI.rank(mpi_comm_world()) == 0:
-    		print "Starting Newton iterations"
+            print "Starting Newton iterations"
         #vel_file = File("velocity/velocity.pvd")
         while t <= T:
             time.append(t)
@@ -299,43 +294,42 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         up = Function(VQ)
 
         F = (rho/k)*inner(u - u1, phi)*dx +\
-        	rho*inner(grad(u)*u0, phi)*dx + \
-        	mu*inner(grad(u), grad(phi))*dx - \
-        	div(phi)*p*dx - eta*div(u)*dx
-
+            rho*inner(grad(u)*u0, phi)*dx + \
+            mu*inner(grad(u), grad(phi))*dx - \
+            div(phi)*p*dx - eta*div(u)*dx
 
         if MPI.rank(mpi_comm_world()) == 0:
-        	print "Starting Piccard iterations \nt = %g" % (dt)
+            print "Starting Piccard iterations \nt = %g" % (dt)
 
         while t <= T:
-        	time.append(t)
+            time.append(t)
 
-        	if t < 2:
-        		inlet.t = t;
-        	if t >= 2:
-        		inlet.t = 2;
+            if t < 2:
+                inlet.t = t;
+            if t >= 2:
+                inlet.t = 2;
 
-        	eps = 10
-        	k_iter = 0
-        	max_iter = 20
-        	while eps > 1E-7 and k_iter < max_iter:
-        		solve(lhs(F) == rhs(F), up, bcs)
+            eps = 10
+            k_iter = 0
+            max_iter = 20
+            while eps > 1E-7 and k_iter < max_iter:
+                solve(lhs(F) == rhs(F), up, bcs)
 
-        		u_, p_ = up.split(True)
-        		eps = errornorm(u_,u0,degree_rise=3)
-        		k_iter += 1
-        		u0.assign(u_)
-        	if MPI.rank(mpi_comm_world()) == 0:
-        		print "iterations: %d  error: %.3e" %(k_iter, eps)
+                u_, p_ = up.split(True)
+                eps = errornorm(u_,u0,degree_rise=3)
+                k_iter += 1
+                u0.assign(u_)
+            if MPI.rank(mpi_comm_world()) == 0:
+                print "iterations: %d  error: %.3e" %(k_iter, eps)
 
-        	drag, lift =integrateFluidStress(p_, u_)
-        	if MPI.rank(mpi_comm_world()) == 0:
-        		print "Time: ",t ," drag: ",drag, "lift: ",lift
-        	Drag.append(drag)
-        	Lift.append(lift)
+            drag, lift =integrateFluidStress(p_, u_)
+            if MPI.rank(mpi_comm_world()) == 0:
+                print "Time: ",t ," drag: ",drag, "lift: ",lift
+            Drag.append(drag)
+            Lift.append(lift)
 
-        	u1.assign(u_)
-        	t += dt
+            u1.assign(u_)
+            t += dt
     run_time = toc()
     print time
 
@@ -410,7 +404,7 @@ Amplitude Drag Force = %(drag_amp)g\n""" %vars())
         plt.savefig("./experiments/cfd3/"+str(count)+"/drag.png")
         #plt.show()
 
-m = "turek2.xml"
+m = "turek1.xml"
 mesh = Mesh(m)
 Drag = []; Lift = []; time = []
 if args.refiner == None:

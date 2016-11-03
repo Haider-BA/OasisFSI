@@ -17,7 +17,7 @@ group = parser.add_argument_group('Parameters')
 group.add_argument("-p_deg",  type=int, help="Set degree of pressure                     --> Default=1", default=1)
 group.add_argument("-v_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=2)
 group.add_argument("-theta",  type=float, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=2)
-group.add_argument("-discr",  help="Write out or keep tensor in variational form --> Default=1", default="keep")
+group.add_argument("-discr",  help="Write out or keep tensor in variational form --> Default=keep", default="keep")
 group.add_argument("-r", "--refiner", action="count", help="Mesh-refiner using built-in FEniCS method refine(Mesh)")
 group2 = parser.add_argument_group('Solvers')
 group2.add_argument("-solver", help="Newton   -- Fenics built-in module (DEFAULT SOLVER) \n"
@@ -129,6 +129,9 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
     def sigma_f(p, u):
         return - p*Identity(2) + mu*(grad(u) + grad(u).T)
 
+    def eps(v):
+        return 0.5*(grad(v).T + grad(v))
+
     Re = Um*D/nu
     print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
     print "Method %s" % (solver)
@@ -136,22 +139,29 @@ def fluid(mesh, solver, fig, v_deg, p_deg, theta):
     if solver == "Newton" or solver == "Newton2":
         phi, eta = TestFunctions(VQ)
         up = Function(VQ)
-    	u, p = split(up)
+        u, p = split(up)
         #For non-theta
         #u0 = Function(V)
 
         up0 = Function(VQ)
-    	u0, p0 = split(up0)
+        u0, p0 = split(up0)
 
         if discr == "keep":
             F = (rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) ) \
                 + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi)) ) *dx \
                 - eta*div(u)*dx
 
+        if discr == "keep2":
+
+            F = rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) )*dx \
+                + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(phi))*dx \
+                - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, phi)*ds \
+                - eta*div(u)*dx
+
         if discr == "split":
-    		F =   rho*inner(theta*grad(u)*u + (1 -theta)*grad(u0)*u0, phi) *dx + \
-    			  mu*inner(theta*grad(u) + (1-theta)*grad(u0) , grad(phi))*dx - \
-    			  (theta*div(phi)*p + (1 - theta)*div(phi)*p0)*dx - eta*div(u)*dx
+            F =   rho*inner(theta*grad(u)*u + (1 -theta)*grad(u0)*u0, phi) *dx + \
+                  mu*inner(theta*grad(u) + (1-theta)*grad(u0) , grad(phi))*dx - \
+                  (theta*div(phi)*p + (1 - theta)*div(phi)*p0)*dx - eta*div(u)*dx
 
 
     if solver == "Newton":
