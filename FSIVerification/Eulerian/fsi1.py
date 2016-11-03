@@ -72,20 +72,24 @@ Bar.mark(boundaries, 5)
 Circle.mark(boundaries, 6)
 Barwall.mark(boundaries, 7)
 
-
+# All boundaries execpt flag, for
 Neumann = FacetFunction("size_t",mesh, 0)
-Wall.mark(Neumann, 1)
-Inlet.mark(Neumann, 1)
-Outlet.mark(Neumann, 1)
-Circle.mark(Neumann, 1)
+DomainBoundary().mark(Neumann, 1)
 Barwall.mark(Neumann, 0)
-testinterior = FacetFunction("size_t", mesh)
-testinterior.set_all(0)
-Bar.mark(testinterior, 5)
 
+# Flag boundary, for balance of momentum on interface
+interface = FacetFunction("size_t", mesh)
+interface.set_all(0)
+Bar.mark(interface, 5)
+
+# Full geometry for force integral
+geometry = FacetFunction("size_t",mesh, 0)
+Bar.mark(geometry, 1)
+Circle.mark(geometry, 1)
+Barwall.mark(geometry, 0)
 
 ds = Measure("ds", subdomain_data = Neumann)
-dS = Measure("dS", subdomain_data = testinterior) # For interface (interior)
+dS = Measure("dS", subdomain_data = interface) # For interface (interior)
 n = FacetNormal(mesh)
 
 # Parameters
@@ -109,8 +113,9 @@ lamda = nu_s*2*mu_s/(1-2*nu_s)
 g = Constant((0,-2*rho_s))
 
 # AREAS
-
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
+boundary_parts = FacetFunction("size_t", mesh, 0)
+Bar_area.mark(boundary_parts, 1)
 
 domains = CellFunction("size_t",mesh)
 domains.set_all(1)
@@ -119,10 +124,6 @@ dx = Measure("dx",subdomain_data=domains)
 
 # Boundary conditions
 inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2)" ,"0"), Um = Um, H = H)
-
-#boundary_parts = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
-boundary_parts = FacetFunction("size_t", mesh, 0)
-Bar_area.mark(boundary_parts, 1)
 
 # velocity conditions
 u_inlet   = DirichletBC(VVQ.sub(0), inlet,    boundaries, 3)
@@ -148,6 +149,7 @@ bcs = [u_inlet, u_wall, u_circ, u_barwall, \
        p_out, p_barwall, p_struc]
 
 
+
 # TEST TRIAL FUNCTIONS
 psi, gamma, eta = TestFunctions(VVQ)
 
@@ -169,16 +171,10 @@ def Venant_Kirchhof(d):
     E = 0.5*((inv(F.T)*inv(F))-I)
     return inv(F)*(2.*mu_s*E + lamda*tr(E)*I)*inv(F.T)
 
-def integrateFluidStress(p, u):
-    geometry = FacetFunction("size_t",mesh)
-    geometry.set_all(0)
-    Bar.mark(geometry, 1)
-    Circle.mark(geometry, 1)
-    Barwall.mark(geometry, 0)
-    test = File("geo.pvd")
-    test << geometry
-
-    ds_g = Measure("ds", subdomain_data = geometry) # surface of geometry
+def integrateFluidStress(p, u, geo, n):
+    ds_g = Measure("ds", subdomain_data = geo) # surface of geometry
+    #test3 = File("geo3.pvd")
+    #test3 << geometry
 
     eps   = 0.5*(grad(u) + grad(u).T)
     sig   = -p*Identity(2) + 2.0*mu_f*eps
@@ -201,7 +197,7 @@ def eps(v):
 # Fluid variational form
 Fluid_momentum = rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
     + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx \
-    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds \
+    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(1) \
 
 Fluid_continuity = eta*div(u)*dx(1)
 
@@ -235,7 +231,7 @@ F = Fluid_momentum + Fluid_continuity \
 t = 0
 
 time = []; dis_x = []; dis_y = []
-vel_file = File("./velocity/velocity.pvd")
+#vel_file = File("./velocity/velocity.pvd")
 #vel_file << u0
 
 J = derivative(F, udp)
@@ -265,7 +261,7 @@ ALE.move(mesh, d_disp)
 mesh.bounding_box_tree().build(mesh)
 udp0.assign(udp)
 
-drag, lift = integrateFluidStress(p, u)
+drag, lift = integrateFluidStress(p, u, geometry, n)
 
 #vel_file << u
 print "DOFS", VVQ.dim()
