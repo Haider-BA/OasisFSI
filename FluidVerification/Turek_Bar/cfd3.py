@@ -410,7 +410,7 @@ Amplitude Drag Force = %(drag_amp)g\n""" %vars())
         plt.savefig("./experiments/cfd3/"+str(count)+"/drag.png")
         #plt.show()
 
-m = "turek1.xml"
+m = "turek2.xml"
 mesh = Mesh(m)
 Drag = []; Lift = []; time = []
 if args.refiner == None:
