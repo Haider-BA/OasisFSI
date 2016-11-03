@@ -1,18 +1,52 @@
 from dolfin import *
+import argparse
+from argparse import RawTextHelpFormatter
+
+parser = argparse.ArgumentParser(description="Implementation of Turek test case CFD1\n"
+"For details: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.550.1689&rep=rep1&type=pdf",\
+ formatter_class=RawTextHelpFormatter, \
+  epilog="############################################################################\n"
+  "Example --> python fsi1.py\n"
+  "############################################################################")
+group = parser.add_argument_group('Parameters')
+group.add_argument("-p_deg",  type=int, help="Set degree of pressure                     --> Default=1", default=1)
+group.add_argument("-v_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=2)
+group.add_argument("-d_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=1)
+group.add_argument("-theta",  type=float, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=1)
+group.add_argument("-discr",  help="Write out or keep tensor in variational form --> Default=keep", default="keep")
+group.add_argument("-r", "--refiner", action="count", help="Mesh-refiner using built-in FEniCS method refine(Mesh)")
+group2 = parser.add_argument_group('Solvers')
+group2.add_argument("-solver", help="Newton   -- Fenics built-in module (DEFAULT SOLVER) \n"
+"Newton2  -- Manuell implementation\n"
+"Piccard  -- Manuell implementation\n", default="Newton")
+
+args = parser.parse_args()
+
+v_deg = args.v_deg
+p_deg = args.p_deg
+d_deg = args.d_deg
+solver = args.solver
+theta = args.theta
+discr = args.discr
+fig = False
+
 parameters['allow_extrapolation']=True
 
 #mesh = Mesh("von_karman_street_FSI_fluid.xml")
 mesh = Mesh("fluid_new.xml")
 #plot(mesh,interactive=True)
+if args.refiner != None:
+    for i in range(args.refiner):
+        mesh = refine(mesh)
 
 for coord in mesh.coordinates():
     if coord[0]==0.6 and (0.199<=coord[1]<=0.2001): # to get the point [0.2,0.6] end of bar
         print coord
         break
 
-V1 = VectorFunctionSpace(mesh, "CG", 3) # Velocity
-V2 = VectorFunctionSpace(mesh, "CG", 1) # Structure deformation
-Q  = FunctionSpace(mesh, "CG", 2)       # Fluid Pressure
+V1 = VectorFunctionSpace(mesh, "CG", v_deg) # Velocity
+V2 = VectorFunctionSpace(mesh, "CG", d_deg) # Structure deformation
+Q  = FunctionSpace(mesh, "CG", p_deg)       # Fluid Pressure
 
 VVQ = MixedFunctionSpace([V1,V2,Q])
 
@@ -164,9 +198,6 @@ def sigma_f(p, u):
 def eps(v):
     return 0.5*(grad(v).T + grad(v))
 
-#theta = Constant(0.593)
-theta = Constant(1)
-
 # Fluid variational form
 Fluid_momentum = rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
     + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx \
@@ -239,6 +270,7 @@ drag, lift = integrateFluidStress(p, u)
 #vel_file << u
 print "DOFS", VVQ.dim()
 print "Cells", mesh.num_vertices()
+print "Discretization theta = %g" % theta
 print "Displacement x", d(coord)[0]
 print "Displacement y", d(coord)[1]
 print "Lift %g" % lift
