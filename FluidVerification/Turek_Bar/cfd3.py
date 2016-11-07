@@ -33,7 +33,6 @@ group2.add_argument("-solver", help="Newton   -- Fenics built-in module \n"
 args = parser.parse_args()
 T = args.T
 dt = args.dt
-solver = args.solver
 v_deg = args.v_deg
 p_deg = args.p_deg
 solver = args.solver

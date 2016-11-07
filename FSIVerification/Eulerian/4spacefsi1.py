@@ -32,6 +32,8 @@ fig = False
 
 parameters['allow_extrapolation']=True
 
+### Dunne proposition of implementation #####
+
 #mesh = Mesh("von_karman_street_FSI_fluid.xml")
 mesh = Mesh("fluid_new.xml")
 #plot(mesh,interactive=True)
@@ -46,9 +48,10 @@ for coord in mesh.coordinates():
 
 V1 = VectorFunctionSpace(mesh, "CG", v_deg) # Velocity
 V2 = VectorFunctionSpace(mesh, "CG", d_deg) # Structure deformation
+V3 = VectorFunctionSpace(mesh, "CG", 1)     # Structure velocity
 Q  = FunctionSpace(mesh, "CG", p_deg)       # Fluid Pressure
 
-VVQ = MixedFunctionSpace([V1,V2,Q])
+VVQ = MixedFunctionSpace([V1, V2, V3, Q])
 
 # BOUNDARIES
 
@@ -72,15 +75,16 @@ Bar.mark(boundaries, 5)
 Circle.mark(boundaries, 6)
 Barwall.mark(boundaries, 7)
 
-# All boundaries execpt flag, for ne surface integrals
+# All boundaries execpt flag, for neumann surface integrals
 Neumann = FacetFunction("size_t",mesh, 0)
 DomainBoundary().mark(Neumann, 1)
 Barwall.mark(Neumann, 0)
+Bar.mark(Neumann, 0)
 
 # Flag boundary, for balance of momentum on interface
 interface = FacetFunction("size_t", mesh)
 interface.set_all(0)
-Bar.mark(interface, 5)
+Bar.mark(interface, 2)
 
 # Full geometry for lift/drag integral
 geometry = FacetFunction("size_t",mesh, 0)
@@ -110,13 +114,12 @@ H = 0.41
 L = 2.5
 D = 0.1
 
-#Fluid properties
+# Fluid properties
 rho_f   = Constant(1000.0)
 mu_f    = Constant(1.0)
 nu_f = mu_f/rho_f
 
-#Structure properties
-#FSI 1
+#FSI 1 Structure properties
 rho_s = 1E3
 mu_s = 0.5E6
 nu_s = 0.4
@@ -140,24 +143,32 @@ d_circ    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 6) #No slip on geometr
 d_barwall = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 7)
 d_outlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 4)
 
+# Deformation conditions
+w_inlet   = DirichletBC(VVQ.sub(2), ((0, 0)), boundaries, 3)
+w_wall    = DirichletBC(VVQ.sub(2), ((0, 0)), boundaries, 2)
+w_circ    = DirichletBC(VVQ.sub(2), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+w_barwall = DirichletBC(VVQ.sub(2), ((0, 0)), boundaries, 7)
+w_outlet  = DirichletBC(VVQ.sub(2), ((0, 0)), boundaries, 4)
+
 # Pressure Conditions
-p_out     = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
-p_barwall = DirichletBC(VVQ.sub(2), 0, boundaries, 7)
-p_struc   = DirichletBC(VVQ.sub(2), 0, boundary_parts, 1)
+p_out     = DirichletBC(VVQ.sub(3), 0, boundaries, 4)
+p_barwall = DirichletBC(VVQ.sub(3), 0, boundaries, 7)
+p_struc   = DirichletBC(VVQ.sub(3), 0, boundary_parts, 1)
 
 # Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
        d_inlet, d_wall, d_circ, d_barwall, d_outlet,\
-       p_out, p_barwall, p_struc]
+       w_inlet, w_wall, w_circ, w_barwall, w_outlet, \
+       p_out, p_barwall]
 
 # Functions
-psi, gamma, eta = TestFunctions(VVQ)
+psi, gamma, phi, eta = TestFunctions(VVQ)
 
-udp = Function(VVQ)
-u, d, p  = split(udp)
+udwp = Function(VVQ)
+u, d, w, p  = split(udwp)
 
-udp0 = Function(VVQ)
-u0, d0, p0  = split(udp0)
+udwp0 = Function(VVQ)
+u0, d0, w0, p0  = split(udwp0)
 
 d_disp = Function(V2)
 
@@ -166,10 +177,10 @@ print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
 
 def Venant_Kirchhof(d):
     I = Identity(2)
-    F = I - grad(d)
+    F = inv(I - grad(d))
     J = det(F)
-    E = 0.5*((inv(F.T)*inv(F))-I)
-    return inv(F)*(2.*mu_s*E + lamda*tr(E)*I)*inv(F.T)
+    E = 0.5*(F.T*F - I)
+    return inv(J)*F*(2.*mu_s*E + lamda*tr(E)*I)*F.T
 
 def integrateFluidStress(p, u, geo, n):
     ds_g = Measure("ds", subdomain_data = geo) # surface of geometry
@@ -194,49 +205,34 @@ def sigma_f(p, u):
 def eps(v):
     return 0.5*(grad(v).T + grad(v))
 
-# Fluid variational form
-Fluid_momentum = rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
-    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx(1) #dont crash for dx\
-    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(1) \
+# Momentum
+Momentum = inner(sigma_f(p, u), eps(psi))*dx(1) + inner(Venant_Kirchhof(d), eps(gamma))*dx(2) \
+           + inner(g, psi)*dx(2)
 
-Fluid_continuity = eta*div(u)*dx(1)
+# Continuity + pressure in Structure
+ap = 0.1
+Fluid_continuity = eta*div(u)*dx(1) + inner(ap*grad(p), grad(eta))*dx(2)
 
-# Structure Variational form
+#Deformation
+deformation = inner(grad(d)*w - w, gamma)*dx
+#deformation = inner(w, phi)*dx
 
-I = Identity(2)
-F_ = I - grad(d)
-J_ = det(F_)
-F_1 = I - grad(d0)
-J_1 = det(F_1)
+vel_relation = inner(w - u, phi)*dx(2) + inner(grad(w), grad(phi))*dx(1)
 
+#Conservation of dynamics
+dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(2) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(2)
+#dynamic = - inner(Venant_Kirchhof(d)*n, psi)*dS(2) - inner(sigma_f(p, u)*n ,psi)*dS(2)
 
+F = Momentum + Fluid_continuity \
+  + vel_relation + dynamic
 
-Solid_momentum = ( inner(J_*theta*Venant_Kirchhof(d) + (1 - theta)*J_1*Venant_Kirchhof(d0) , grad(psi))  \
-                - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2)
-
-Solid_deformation = inner(theta*u + (1 -theta)*u0, gamma)  * dx(2)
-
-# Mesh velocity function in fluid domain
-d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
-
-#Conservation of dynamics (CHECK SIGNS!!)
-#dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
-dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
-#dynamic = - inner(Venant_Kirchhof(d)*n, psi)*dS(5) - inner(sigma_f(p, u)*n ,psi)*dS(5)
-
-F = Fluid_momentum + Fluid_continuity \
-  + Solid_momentum + Solid_deformation \
-  + d_smooth + dynamic
-
-t = 0
-
-time = []; dis_x = []; dis_y = []
+dis_x = []; dis_y = []
 #vel_file = File("./velocity/velocity.pvd")
 #vel_file << u0
 
-J = derivative(F, udp)
+J = derivative(F, udwp)
 
-problem = NonlinearVariationalProblem(F, udp, bcs, J)
+problem = NonlinearVariationalProblem(F, udwp, bcs, J)
 sol  = NonlinearVariationalSolver(problem)
 
 prm = sol.parameters
@@ -244,17 +240,17 @@ prm = sol.parameters
 prm['nonlinear_solver'] = 'newton'
 prm['newton_solver']['absolute_tolerance'] = 1E-10
 prm['newton_solver']['relative_tolerance'] = 1E-10
-prm['newton_solver']['maximum_iterations'] = 10
+prm['newton_solver']['maximum_iterations'] = 4
 prm['newton_solver']['relaxation_parameter'] = 1.0
 prm['newton_solver']['linear_solver'] = 'mumps'
 
 
 sol.solve()
 
-u, d, p  = udp.split(True)
+u, d, w, p  = udwp.split(True)
 
-u0, d0, p0  = udp0.split(True)
-
+u0, d0, w0, p0  = udwp0.split(True)
+"""
 d_disp.vector()[:] = d.vector()[:] - d0.vector()[:]
 
 ALE.move(mesh, d_disp)
@@ -262,7 +258,7 @@ mesh.bounding_box_tree().build(mesh)
 udp0.assign(udp)
 
 drag, lift = integrateFluidStress(p, u, geometry, n)
-
+"""
 #vel_file << u
 print "DOFS", VVQ.dim()
 print "Cells", mesh.num_vertices()
