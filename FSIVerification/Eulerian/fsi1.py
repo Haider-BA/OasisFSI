@@ -258,13 +258,15 @@ sol  = NonlinearVariationalSolver(problem)
 
 prm = sol.parameters
 #info(prm,True)  #get full info on the parameters
+list_linear_solver_methods()
+#parameters["ghost_mode"] = "shared_facet"
 prm['nonlinear_solver'] = 'newton'
 prm['newton_solver']['absolute_tolerance'] = 1E-7
 prm['newton_solver']['relative_tolerance'] = 1E-7
 prm['newton_solver']['maximum_iterations'] = 20
 prm['newton_solver']['relaxation_parameter'] = 1.0
-prm['newton_solver']['linear_solver'] = 'mumps'
-
+#prm['newton_solver']['linear_solver'] = 'mumps'
+prm['newton_solver']['linear_solver'] = 'lu'
 
 tic()
 while t <= T:
