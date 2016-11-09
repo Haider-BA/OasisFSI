@@ -171,7 +171,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         prm['nonlinear_solver'] = 'newton'
         prm['newton_solver']['absolute_tolerance'] = 1E-10
         prm['newton_solver']['relative_tolerance'] = 1E-10
-        prm['newton_solver']['maximum_iterations'] = 30
+        prm['newton_solver']['maximum_iterations'] = 10
         prm['newton_solver']['relaxation_parameter'] = 1.0
         prm['newton_solver']['linear_solver'] = 'mumps'
 

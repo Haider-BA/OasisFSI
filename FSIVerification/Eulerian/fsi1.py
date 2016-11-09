@@ -142,7 +142,7 @@ g = Constant((0,-2*rho_s))
 
 
 # velocity conditions
-u_inlet   = DirichletBC(VVQ.sub(0), inlet,    boundaries, 3)
+u_inlet   = DirichletBC(VVQ.sub(0), ((1, 0)),    boundaries, 3)
 u_wall    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
 u_circ    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
@@ -258,41 +258,45 @@ sol  = NonlinearVariationalSolver(problem)
 
 prm = sol.parameters
 #info(prm,True)  #get full info on the parameters
-list_linear_solver_methods()
-#parameters["ghost_mode"] = "shared_facet"
+#list_linear_solver_methods()
+parameters["ghost_mode"] = "shared_facet"
 prm['nonlinear_solver'] = 'newton'
 prm['newton_solver']['absolute_tolerance'] = 1E-7
 prm['newton_solver']['relative_tolerance'] = 1E-7
 prm['newton_solver']['maximum_iterations'] = 20
 prm['newton_solver']['relaxation_parameter'] = 1.0
-#prm['newton_solver']['linear_solver'] = 'mumps'
-prm['newton_solver']['linear_solver'] = 'lu'
+prm['newton_solver']['linear_solver'] = 'mumps'
+#prm['newton_solver']['linear_solver'] = 'lu'
 
+vel = File("velocity/vel.pvd")
 tic()
 while t <= T:
     print "Time %f" % t
     time.append(t)
 
     if t < 2:
-        inlet.t = t;
+        #inlet.t = t;
+        inlet.t = 2;
     if t >= 2:
         inlet.t = 2;
 
     sol.solve()
 
     u_, d_, p_  = udp.split(True)
+    vel << u_
 
     u0, d0, p0  = udp0.split(True)
 
     d_disp.vector()[:] = d_.vector()[:] - d0.vector()[:]
-    ALE.move(mesh, d_disp)
-    mesh.bounding_box_tree().build(mesh)
+    #ALE.move(mesh, d_disp)
+    #mesh.bounding_box_tree().build(mesh)
 
     drag, lift =integrateFluidStress(p_, u_, geometry)
-    if MPI.rank(mpi_comm_world()) == 0:
-        print "Time: ",t ," drag: ",drag, "lift: ",lift
     Drag.append(drag)
     Lift.append(lift)
+    if MPI.rank(mpi_comm_world()) == 0:
+        print "Time: ",t ," drag: ",drag, "lift: ",lift
+
 
     udp0.assign(udp)
 

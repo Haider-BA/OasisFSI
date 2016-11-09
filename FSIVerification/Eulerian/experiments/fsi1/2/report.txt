@@ -1,0 +1,21 @@
+FSI1 Turek parameters
+Re = 20 
+mesh = fluid_new.xml
+DOF = 11072
+T = 0.01
+dt = 0.001
+v_deg = 2
+,d_deg1
+p_deg = 1
+solver = Newton
+theta_scheme = 1.0
+Discretization = keep
+Runtime = 76.645116 
+
+Steady Forces:
+Lift Force = 0.42969
+Drag Force = 0.0425613
+
+Steady Displacement:
+displacement_x = -3.44862e-11 
+displacement_y = -2.6645e-07 
