@@ -1,0 +1,17 @@
+CFD2 Turek parameters
+
+Re = 100 
+mesh = turek1.xml
+DOF = 28624
+T = 8
+dt = 0.001
+v_deg = 2
+p_deg = 1
+solver = Newton
+theta_scheme = 1.0
+Discretization = keep
+Runtime = 1693.341571 
+
+Steady Forces:
+Lift Force = 6.27159 
+Drag Force = 135.465 
