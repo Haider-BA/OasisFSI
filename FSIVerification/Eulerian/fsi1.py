@@ -86,6 +86,7 @@ Barwall.mark(boundaries, 7)
 # All boundaries execpt flag, for the surface integrals
 Neumann = FacetFunction("size_t",mesh, 0)
 DomainBoundary().mark(Neumann, 1)
+Bar.mark(Neumann, 0)
 Barwall.mark(Neumann, 0)
 
 # Flag boundary, for balance of momentum on interface
@@ -99,17 +100,19 @@ Bar.mark(geometry, 1)
 Circle.mark(geometry, 1)
 Barwall.mark(geometry, 0)
 
-# Area functions
-
+# Area functions, to set pressure = 0 in structure
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
 boundary_parts = FacetFunction("size_t", mesh, 0)
 Bar_area.mark(boundary_parts, 1)
+test = File("neu.pvd")
+test << boundary_parts
 
+#Are functions, for variational form
 domains = CellFunction("size_t", mesh)
 domains.set_all(1)
 Bar_area.mark(domains, 2) #Overwrites structure domain
-dx = Measure("dx",subdomain_data = domains)
 
+dx = Measure("dx",subdomain_data = domains)
 ds = Measure("ds", subdomain_data = Neumann)
 dS = Measure("dS", subdomain_data = interface) # For interface (interior)
 n = FacetNormal(mesh)
@@ -139,9 +142,6 @@ E_1 = 1.4E6
 lamda = nu_s*2*mu_s/(1-2*nu_s)
 g = Constant((0,-2*rho_s))
 
-# Boundary conditions
-inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
-                        ,"0"), t = 0.0, Um = Um, H = H)
 
 # velocity conditions
 u_inlet   = DirichletBC(VVQ.sub(0), inlet,    boundaries, 3)
