@@ -137,12 +137,13 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
         up0 = Function(VQ)
         u0, p0 = split(up0)
 
+        #Here, tensor is not split up into pressure and stress, but kept as a function
         if discr == "keep":
             F = rho/k*inner(u - u0, phi) *dx \
             + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) )*dx \
             + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), grad(phi))  *dx \
             - eta*div(u)*dx
-
+        #Same, but with surface integrals
         if discr == "keep2":
             F = rho/k*inner(u - u0, phi) *dx \
             + rho*(theta*inner(dot(grad(u), u), phi) + (1 - theta)*inner(dot(grad(u0), u0), phi) )*dx \

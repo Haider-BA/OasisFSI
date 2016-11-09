@@ -234,8 +234,7 @@ Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d
     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
 # Mesh velocity function in fluid domain
-#d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
-d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(5)
+d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
 
 #Conservation of dynamics (CHECK SIGNS!!)
 #dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
