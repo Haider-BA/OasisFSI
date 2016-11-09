@@ -1,4 +1,7 @@
 from dolfin import *
+import matplotlib.pyplot as plt
+import numpy as np
+import os
 import argparse
 from argparse import RawTextHelpFormatter
 
@@ -11,7 +14,9 @@ parser = argparse.ArgumentParser(description="Implementation of Turek test case 
 group = parser.add_argument_group('Parameters')
 group.add_argument("-p_deg",  type=int, help="Set degree of pressure                     --> Default=1", default=1)
 group.add_argument("-v_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=2)
-group.add_argument("-d_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=1)
+group.add_argument("-d_deg",  type=int, help="Set degree of velocity                     --> Default=1", default=1)
+group.add_argument("-T",  type=float, help="Set end time                                 --> Default=0.1", default=0.1)
+group.add_argument("-dt",  type=float, help="Set timestep                                --> Default=0.001", default=0.001)
 group.add_argument("-theta",  type=float, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=1)
 group.add_argument("-discr",  help="Write out or keep tensor in variational form --> Default=keep", default="keep")
 group.add_argument("-r", "--refiner", action="count", help="Mesh-refiner using built-in FEniCS method refine(Mesh)")
@@ -28,12 +33,15 @@ d_deg = args.d_deg
 solver = args.solver
 theta = args.theta
 discr = args.discr
+T = args.T
+dt = args.dt
 fig = False
 
 parameters['allow_extrapolation']=True
 
 #mesh = Mesh("von_karman_street_FSI_fluid.xml")
 mesh = Mesh("fluid_new.xml")
+m = "fluid_new.xml"
 #plot(mesh,interactive=True)
 if args.refiner != None:
     for i in range(args.refiner):
@@ -50,7 +58,10 @@ Q  = FunctionSpace(mesh, "CG", p_deg)       # Fluid Pressure
 
 VVQ = MixedFunctionSpace([V1,V2,Q])
 
-# BOUNDARIES
+#Dofs and cells
+U_dof = V1.dim()
+mesh_cells = mesh.num_cells()
+
 
 #NOS = AutoSubDomain(lambda x: "on_boundary" and( near(x[1],0) or near(x[1], 0.41)))
 Inlet = AutoSubDomain(lambda x: "on_boundary" and near(x[0],0))
@@ -72,7 +83,7 @@ Bar.mark(boundaries, 5)
 Circle.mark(boundaries, 6)
 Barwall.mark(boundaries, 7)
 
-# All boundaries execpt flag, for ne surface integrals
+# All boundaries execpt flag, for the surface integrals
 Neumann = FacetFunction("size_t",mesh, 0)
 DomainBoundary().mark(Neumann, 1)
 Barwall.mark(Neumann, 0)
@@ -82,38 +93,42 @@ interface = FacetFunction("size_t", mesh)
 interface.set_all(0)
 Bar.mark(interface, 5)
 
-# Full geometry for lift/drag integral
-geometry = FacetFunction("size_t",mesh, 0)
+# Full inner geometry(flag + circle) for lift/drag integral
+geometry = FacetFunction("size_t", mesh, 0)
 Bar.mark(geometry, 1)
 Circle.mark(geometry, 1)
 Barwall.mark(geometry, 0)
 
 # Area functions
-# Fluid and structure integrateoperator
+
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
 boundary_parts = FacetFunction("size_t", mesh, 0)
 Bar_area.mark(boundary_parts, 1)
 
-domains = CellFunction("size_t",mesh)
+domains = CellFunction("size_t", mesh)
 domains.set_all(1)
-Bar_area.mark(domains,2)
+Bar_area.mark(domains, 2) #Overwrites structure domain
+dx = Measure("dx",subdomain_data = domains)
 
-n = FacetNormal(mesh)
-dx = Measure("dx", subdomain_data = domains)
 ds = Measure("ds", subdomain_data = Neumann)
 dS = Measure("dS", subdomain_data = interface) # For interface (interior)
-
+n = FacetNormal(mesh)
 
 # Parameters
 Um = 0.2
 H = 0.41
 L = 2.5
 D = 0.1
+k = Constant(dt)
+t = 0
 
 #Fluid properties
 rho_f   = Constant(1000.0)
 mu_f    = Constant(1.0)
 nu_f = mu_f/rho_f
+
+inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
+                        ,"0"), t = 0.0, Um = Um, H = H)
 
 #Structure properties
 #FSI 1
@@ -125,7 +140,8 @@ lamda = nu_s*2*mu_s/(1-2*nu_s)
 g = Constant((0,-2*rho_s))
 
 # Boundary conditions
-inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2)" ,"0"), Um = Um, H = H)
+inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2))/2"\
+                        ,"0"), t = 0.0, Um = Um, H = H)
 
 # velocity conditions
 u_inlet   = DirichletBC(VVQ.sub(0), inlet,    boundaries, 3)
@@ -171,7 +187,7 @@ def Venant_Kirchhof(d):
     E = 0.5*((inv(F.T)*inv(F))-I)
     return inv(F)*(2.*mu_s*E + lamda*tr(E)*I)*inv(F.T)
 
-def integrateFluidStress(p, u, geo, n):
+def integrateFluidStress(p, u, geo):
     ds_g = Measure("ds", subdomain_data = geo) # surface of geometry
     #test3 = File("geo3.pvd")
     #test3 << geometry
@@ -195,9 +211,10 @@ def eps(v):
     return 0.5*(grad(v).T + grad(v))
 
 # Fluid variational form
-Fluid_momentum = rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
-    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx(1) #dont crash for dx\
-    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(1) \
+Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx(1) \
+    + rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
+    + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx(1) \
+    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(1)
 
 Fluid_continuity = eta*div(u)*dx(1)
 
@@ -210,11 +227,13 @@ F_1 = I - grad(d0)
 J_1 = det(F_1)
 
 
+Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
+    + rho_s*( J_*theta*inner(dot(grad(u), u), psi) + J_1*(1 - theta)*inner(dot(grad(u0), u0), psi) ) \
+    + inner(J_*theta*Venant_Kirchhof(d) + (1 - theta)*J_1*Venant_Kirchhof(d0) , grad(psi))  \
+    - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2)
 
-Solid_momentum = ( inner(J_*theta*Venant_Kirchhof(d) + (1 - theta)*J_1*Venant_Kirchhof(d0) , grad(psi))  \
-                - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2)
-
-Solid_deformation = inner(theta*u + (1 -theta)*u0, gamma)  * dx(2)
+Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
+    - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
 # Mesh velocity function in fluid domain
 d_smooth = inner(grad(d),grad(gamma))*dx(1) #- inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
@@ -228,9 +247,8 @@ F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation \
   + d_smooth + dynamic
 
-t = 0
-
 time = []; dis_x = []; dis_y = []
+Lift = []; Drag = []
 #vel_file = File("./velocity/velocity.pvd")
 #vel_file << u0
 
@@ -242,32 +260,111 @@ sol  = NonlinearVariationalSolver(problem)
 prm = sol.parameters
 #info(prm,True)  #get full info on the parameters
 prm['nonlinear_solver'] = 'newton'
-prm['newton_solver']['absolute_tolerance'] = 1E-10
-prm['newton_solver']['relative_tolerance'] = 1E-10
-prm['newton_solver']['maximum_iterations'] = 10
+prm['newton_solver']['absolute_tolerance'] = 1E-7
+prm['newton_solver']['relative_tolerance'] = 1E-7
+prm['newton_solver']['maximum_iterations'] = 20
 prm['newton_solver']['relaxation_parameter'] = 1.0
 prm['newton_solver']['linear_solver'] = 'mumps'
 
 
-sol.solve()
+tic()
+while t <= T:
+    print "Time %f" % t
+    time.append(t)
 
-u, d, p  = udp.split(True)
+    if t < 2:
+        inlet.t = t;
+    if t >= 2:
+        inlet.t = 2;
 
-u0, d0, p0  = udp0.split(True)
+    sol.solve()
 
-d_disp.vector()[:] = d.vector()[:] - d0.vector()[:]
+    u_, d_, p_  = udp.split(True)
 
-ALE.move(mesh, d_disp)
-mesh.bounding_box_tree().build(mesh)
-udp0.assign(udp)
+    u0, d0, p0  = udp0.split(True)
 
-drag, lift = integrateFluidStress(p, u, geometry, n)
+    d_disp.vector()[:] = d_.vector()[:] - d0.vector()[:]
+    ALE.move(mesh, d_disp)
+    mesh.bounding_box_tree().build(mesh)
 
-#vel_file << u
-print "DOFS", VVQ.dim()
-print "Cells", mesh.num_vertices()
-print "Discretization theta = %g" % theta
-print "Displacement x", d(coord)[0]
-print "Displacement y", d(coord)[1]
-print "Lift %g" % lift
-print "Drag %g" % drag
+    drag, lift =integrateFluidStress(p_, u_, geometry)
+    if MPI.rank(mpi_comm_world()) == 0:
+        print "Time: ",t ," drag: ",drag, "lift: ",lift
+    Drag.append(drag)
+    Lift.append(lift)
+
+    udp0.assign(udp)
+
+    #vel_file << u
+
+    dis_x.append(d_(coord)[0])
+    dis_y.append(d_(coord)[1])
+
+    t += dt
+
+run_time = toc()
+
+if MPI.rank(mpi_comm_world()) == 0:
+    count = 1
+    while os.path.exists("./experiments/fsi1/"+str(count)):
+        count+= 1
+
+    os.makedirs("./experiments/fsi1/"+str(count))
+
+    print("Creating report file ./experiments/fsi1/"+str(count)+"/report.txt")
+    name = "./experiments/fsi1/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
+    f = open(name, 'w')
+    f.write("""FSI1 Turek parameters\n"""
+            """Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\n,d_deg%(d_deg)g\np_deg = %(p_deg)g\n"""
+            """solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n""" % vars())
+    f.write("""Runtime = %f \n\n""" % run_time)
+
+    f.write("Steady Forces:\nLift Force = %g\n"
+            "Drag Force = %g\n\n" % (Lift[-1], Drag[-1]))
+    f.write("Steady Displacement:\ndisplacement_x = %g \n"
+    "displacement_y = %g \n" % (dis_x[-1], dis_y[-1]))
+    f.close()
+
+    np.savetxt("./experiments/fsi1/"+str(count)+"/Lift.txt", Lift, delimiter=',')
+    np.savetxt("./experiments/fsi1/"+str(count)+"/Drag.txt", Drag, delimiter=',')
+    np.savetxt("./experiments/fsi1/"+str(count)+"/time.txt", time, delimiter=',')
+
+    plt.figure(1)
+    plt.title("LIFT \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
+    plt.xlabel("Time Seconds")
+    plt.ylabel("Lift force Newton")
+    plt.plot(time, Lift, label='dt  %g' % dt)
+    plt.legend(loc=4)
+    plt.savefig("./experiments/fsi1/"+str(count)+"/lift.png")
+
+    plt.figure(2)
+    plt.title("DRAG \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
+    plt.xlabel("Time Seconds")
+    plt.ylabel("Drag force Newton")
+    plt.plot(time, Drag, label='dt  %g' % dt)
+    plt.legend(loc=4)
+    plt.savefig("./experiments/fsi1/"+str(count)+"/drag.png")
+    #plt.show()
+    plt.figure(3)
+    plt.title("Dis_x \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
+    plt.xlabel("Time Seconds")
+    plt.ylabel("Drag force Newton")
+    plt.plot(time, dis_x, label='dt  %g' % dt)
+    plt.legend(loc=4)
+    plt.savefig("./experiments/fsi1/"+str(count)+"/dis_x.png")
+
+    plt.figure(4)
+    plt.title("Dis_y \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
+    plt.xlabel("Time Seconds")
+    plt.ylabel("Drag force Newton")
+    plt.plot(time, dis_y, label='dt  %g' % dt)
+    plt.legend(loc=4)
+    plt.savefig("./experiments/fsi1/"+str(count)+"/dis_y.png")
+
+
+    #vel_file << u
+    print "DOFS", VVQ.dim()
+    print "Cells", mesh.num_vertices()
+    print "Discretization theta = %g" % theta
+    print "Lift %g" % Lift[-1]
+    print "Drag %g" % Drag[-1]
