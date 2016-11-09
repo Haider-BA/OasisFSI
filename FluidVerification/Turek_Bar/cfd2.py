@@ -7,14 +7,14 @@ import argparse
 from argparse import RawTextHelpFormatter
 
 parser = argparse.ArgumentParser(description="########################################"
-"\nImplementation of Turek test case CFD1\n######################################## \n \n"
+"\nImplementation of Turek test case CFD2\n######################################## \n \n"
 "-  The program automaticly stores experiment parameters and plots of lift and drag \n"
 "   in the experiment folder \n \n"
 "-  For details of numerical benchmark go to:\n   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.550.1689&rep=rep1&type=pdf",\
  formatter_class=RawTextHelpFormatter, \
  epilog="############################################################################\n"
- "Example --> python cfd1.py -T 0.02 -dt 0.01 -v_deg 2 -p_deg 1 -solver Newton\n"
- "Example --> python cfd1.py -solver Newton2  -v_deg 2 -p_deg 1 -r  (Refines mesh one time, -rr for two etc.) \n"
+ "Example --> python cfd2.py -T 0.02 -dt 0.01 -v_deg 2 -p_deg 1 -solver Newton\n"
+ "Example --> python cfd2.py -solver Newton2  -v_deg 2 -p_deg 1 -r  (Refines mesh one time, -rr for two etc.) \n"
  "############################################################################")
 group = parser.add_argument_group('Parameters')
 group.add_argument("-T",      type=float, help="Set degree of pressure                     --> Default=1", default=0.02)
@@ -43,7 +43,7 @@ fig = False
 H = 0.41
 D = 0.1
 R = D/2.
-Um = 1.0 
+Um = 1.0
 nu = 0.001
 rho = 1000.
 mu = rho*nu
@@ -333,74 +333,47 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
     print time
 
     if MPI.rank(mpi_comm_world()) == 0:
-        max_drag = max(Drag); min_drag = min(Drag)
-        max_lift = max(Lift); min_lift = min(Lift)
-
-        mean_lift = (0.5*(max(Lift) + min(Lift) ))
-        mean_drag = (0.5*(max(Drag) + min(Drag) ))
-
-        lift_amp = (0.5*(max(Lift) - min(Lift) ))
-        drag_amp = (0.5*(max(Drag) + min(Drag) ))
-        print "Max Lift Force %.4f" % max_lift
-        print "Max Drag Force %.4f" % max_drag
-        print "Min Lift Force %.4f" % min_lift
-        print "Min Drag Force %.4f" % min_drag
-
-
-        print "Mean Lift force %.4f" % mean_lift
-        print "Mean Drag force %.4f" % mean_drag
-
-        print "Lift amplitude %.4f" % lift_amp
-        print "Drag amplitude %.4f" % drag_amp
-
         count = 1
-        while os.path.exists("./experiments/cfd1/"+str(count)):
+        while os.path.exists("./experiments/cfd2/"+str(count)):
             count+= 1
 
-        os.makedirs("./experiments/cfd1/"+str(count))
+        os.makedirs("./experiments/cfd2/"+str(count))
 
-        print("Creating report file ./experiments/cfd1/"+str(count)+"/report.txt")
-        name = "./experiments/cfd1/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
+        print("Creating report file ./experiments/cfd2/"+str(count)+"/report.txt")
+        name = "./experiments/cfd2/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
         f = open(name, 'w')
-        f.write("""CFD1 Turek parameters\n
+        f.write("""CFD2 Turek parameters\n
 Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\np_deg = %(p_deg)g\n"""
 """solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n""" % vars())
         f.write("""Runtime = %f \n\n""" % run_time)
 
-        f.write("""Max Lift Force = %(max_lift)g\n
-Min Lift Force = %(min_lift)g\n
-Max Drag Force = %(max_drag)g\n
-Min Drag Force = %(min_drag)g\n
-Mean Lift Force = %(mean_lift)g\n
-Mean Drag Force = %(mean_drag)g\n
-Amplitude Lift Force = %(lift_amp)g\n
-Amplitude Drag Force = %(drag_amp)g\n""" %vars())
-
+        f.write("Steady Forces:\nLift Force = %g \n"
+                "Drag Force = %g \n" % (Lift[-1], Drag[-1]))
         f.close()
 
 
     if MPI.rank(mpi_comm_world()) == 0:
-        np.savetxt("./experiments/cfd1/"+str(count)+"/Lift.txt", Lift, delimiter=',')
-        np.savetxt("./experiments/cfd1/"+str(count)+"/Drag.txt", Drag, delimiter=',')
-        np.savetxt("./experiments/cfd1/"+str(count)+"/time.txt", time, delimiter=',')
+        np.savetxt("./experiments/cfd2/"+str(count)+"/Lift.txt", Lift, delimiter=',')
+        np.savetxt("./experiments/cfd2/"+str(count)+"/Drag.txt", Drag, delimiter=',')
+        np.savetxt("./experiments/cfd2/"+str(count)+"/time.txt", time, delimiter=',')
 
         plt.figure(1)
-        plt.title("LIFT CFD1 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+        plt.title("LIFT CFD2 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
         % (Re, U_dof, mesh_cells, T, dt) )
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift, label='dt  %g' % dt)
         plt.legend(loc=4)
-        plt.savefig("./experiments/cfd1/"+str(count)+"/lift.png")
+        plt.savefig("./experiments/cfd2/"+str(count)+"/lift.png")
 
         plt.figure(2)
-        plt.title("DRAG CFD1\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+        plt.title("DRAG CFD2\n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
         % (Re, U_dof, mesh_cells, T, dt) )
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag, label='dt  %g' % dt)
         plt.legend(loc=4)
-        plt.savefig("./experiments/cfd1/"+str(count)+"/drag.png")
+        plt.savefig("./experiments/cfd2/"+str(count)+"/drag.png")
         #plt.show()
 
 m = "turek1.xml"

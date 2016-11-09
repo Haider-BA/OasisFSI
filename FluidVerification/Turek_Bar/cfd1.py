@@ -333,26 +333,6 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
     print time
 
     if MPI.rank(mpi_comm_world()) == 0:
-        max_drag = max(Drag); min_drag = min(Drag)
-        max_lift = max(Lift); min_lift = min(Lift)
-
-        mean_lift = (0.5*(max(Lift) + min(Lift) ))
-        mean_drag = (0.5*(max(Drag) + min(Drag) ))
-
-        lift_amp = (0.5*(max(Lift) - min(Lift) ))
-        drag_amp = (0.5*(max(Drag) + min(Drag) ))
-        print "Max Lift Force %.4f" % max_lift
-        print "Max Drag Force %.4f" % max_drag
-        print "Min Lift Force %.4f" % min_lift
-        print "Min Drag Force %.4f" % min_drag
-
-
-        print "Mean Lift force %.4f" % mean_lift
-        print "Mean Drag force %.4f" % mean_drag
-
-        print "Lift amplitude %.4f" % lift_amp
-        print "Drag amplitude %.4f" % drag_amp
-
         count = 1
         while os.path.exists("./experiments/cfd1/"+str(count)):
             count+= 1
@@ -367,14 +347,8 @@ Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v
 """solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n""" % vars())
         f.write("""Runtime = %f \n\n""" % run_time)
 
-        f.write("""Max Lift Force = %(max_lift)g\n
-Min Lift Force = %(min_lift)g\n
-Max Drag Force = %(max_drag)g\n
-Min Drag Force = %(min_drag)g\n
-Mean Lift Force = %(mean_lift)g\n
-Mean Drag Force = %(mean_drag)g\n
-Amplitude Lift Force = %(lift_amp)g\n
-Amplitude Drag Force = %(drag_amp)g\n""" %vars())
+        f.write("Steady Forces:\nLift Force = %g \n"
+                "Drag Force = %g \n" % (Lift[-1], Drag[-1]))
 
         f.close()
 
