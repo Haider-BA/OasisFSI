@@ -87,16 +87,16 @@ Neumann = FacetFunction("size_t",mesh, 0)
 DomainBoundary().mark(Neumann, 1)
 Bar.mark(Neumann, 0)
 Barwall.mark(Neumann, 0)
-neu = File("neu.pvd")
-neu << Neumann
+#neu = File("neu.pvd")
+#neu << Neumann
 
 # Flag boundary, for balance of momentum on interface
 interface = FacetFunction("size_t", mesh)
 interface.set_all(0)
 Bar.mark(interface, 1)
 
-inter = File("inter.pvd")
-inter << interface
+#inter = File("inter.pvd")
+#inter << interface
 
 # Full inner geometry(flag + circle) for lift/drag integral
 geometry = FacetFunction("size_t", mesh, 0)
@@ -104,15 +104,15 @@ Bar.mark(geometry, 1)
 Circle.mark(geometry, 1)
 Barwall.mark(geometry, 0)
 
-geom = File("geom.pvd")
-geom << geometry
+#geom = File("geom.pvd")
+#geom << geometry
 
 # Area functions, to set pressure = 0 in structure
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
 boundary_parts = FacetFunction("size_t", mesh, 0)
 Bar_area.mark(boundary_parts, 1)
-bararea = File("bararea.pvd")
-bararea << boundary_parts
+#bararea = File("bararea.pvd")
+#bararea << boundary_parts
 
 #Are functions, for variational form
 #domains = CellFunction("size_t", mesh)
@@ -231,6 +231,7 @@ d_up = TrialFunction(VVQ)
 J = derivative(F, udp, d_up)
 udp_res = Function(VVQ)
 
+#list_lu_solver_methods()
 #Solver parameters
 atol, rtol = 1e-7, 1e-7             # abs/rel tolerances
 lmbda = 1.0                         # relaxation parameter
@@ -256,6 +257,7 @@ while t <= T:
         [bc.apply(A, b, udp.vector()) for bc in bcs]
 
         solve(A, udp_res.vector(), b, "mumps")
+	#solve(A, udp_res.vector(), b, "superlu_dist")	
 
         udp.vector().axpy(1., udp_res.vector())
         [bc.apply(udp.vector()) for bc in bcs]
@@ -269,7 +271,7 @@ while t <= T:
 
     u_, p_  = udp.split(True)
 
-    vel << u_
+    #vel << u_
 
     u0, p0  = udp0.split(True)
 
