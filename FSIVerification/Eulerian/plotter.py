@@ -18,7 +18,7 @@ def display_runs(count, filter):
         info = []
         info.append("Case %d" % i)
         counter = 0
-        with open("./experiments/cfd3/"+str(i)+"/report.txt", 'r') as f:
+        with open("./experiments/fsi1/"+str(i)+"/report.txt", 'r') as f:
             data = f.readlines()
 
             for line in data:
@@ -52,18 +52,18 @@ def plot(sel, data_list, is_filtrated):
     for i in range(len(sel) / 2 ):
         print "Getting stuff from", sel[count]
 
-        time = np.loadtxt("./experiments/cfd3/"+str(sel[count])+"/time.txt", delimiter=',')
-        Lift = np.loadtxt("./experiments/cfd3/"+str(sel[count])+"/Lift.txt", delimiter=',')
-        Drag = np.loadtxt("./experiments/cfd3/"+str(sel[count])+"/Drag.txt", delimiter=',')
+        time = np.loadtxt("./experiments/fsi1/"+str(sel[count])+"/time.txt", delimiter=',')
+        Lift = np.loadtxt("./experiments/fsi1/"+str(sel[count])+"/Lift.txt", delimiter=',')
+        Drag = np.loadtxt("./experiments/fsi1/"+str(sel[count])+"/Drag.txt", delimiter=',')
 
         plt.figure(i)
         plt.subplot(221)
-        #plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+        #plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
         #% (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
         #int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
         if is_filtrated == False:
-            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            plt.title("LIFT FSI1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
             % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
             int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
@@ -73,7 +73,7 @@ def plot(sel, data_list, is_filtrated):
                 plt.axis([1, 12, -540, 540])
 
         if is_filtrated == True:
-            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
             % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
             int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
 
@@ -87,7 +87,7 @@ def plot(sel, data_list, is_filtrated):
         plt.plot(time, Lift)
 
         plt.subplot(223)
-        plt.title("Drag CFD3, case = %d"  % (sel[count]))
+        plt.title("Drag fsi1, case = %d"  % (sel[count]))
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
@@ -108,18 +108,18 @@ def plot(sel, data_list, is_filtrated):
 
         print "Getting stuff from", sel[count]
 
-        time = np.loadtxt("./experiments/cfd3/"+str(sel[count])+"/time.txt", delimiter=',')
-        Lift = np.loadtxt("./experiments/cfd3/"+str(sel[count])+"/Lift.txt", delimiter=',')
-        Drag = np.loadtxt("./experiments/cfd3/"+str(sel[count])+"/Drag.txt", delimiter=',')
+        time = np.loadtxt("./experiments/fsi1/"+str(sel[count])+"/time.txt", delimiter=',')
+        Lift = np.loadtxt("./experiments/fsi1/"+str(sel[count])+"/Lift.txt", delimiter=',')
+        Drag = np.loadtxt("./experiments/fsi1/"+str(sel[count])+"/Drag.txt", delimiter=',')
 
 
         plt.subplot(222)
-        #plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+        #plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
         #% (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
         #int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
         if is_filtrated == False:
-            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
             % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
             int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
@@ -129,7 +129,7 @@ def plot(sel, data_list, is_filtrated):
                 plt.axis([1, 12, -540, 540])
 
         if is_filtrated == True:
-            plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
             % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
             int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
 
@@ -144,15 +144,15 @@ def plot(sel, data_list, is_filtrated):
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift)
-        
-        #plt.legend(loc=4)
-        #plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png")
 
-        #plt.title("DRAG CFD3 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
+        #plt.legend(loc=4)
+        #plt.savefig("./experiments/fsi1/"+str(count)+"/lift.png")
+
+        #plt.title("DRAG fsi1 \n Re = %.1f, dofs = %d, cells = %d \n T = %g, dt = %g"
         #% (Re, U_dof, mesh_cells, T, dt) )
 
         plt.subplot(224)
-        plt.title("Drag CFD3, case = %d  " % sel[count])
+        plt.title("Drag fsi1, case = %d  " % sel[count])
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton\nTEst\nthis")
         plt.plot(time, Drag)
@@ -170,7 +170,7 @@ def plot(sel, data_list, is_filtrated):
                 plt.axis([9, 9.6, 430, 450])
 
         #plt.legend(loc=4)
-        #plt.savefig("./experiments/cfd3/"+str(count)+"/lift.png"
+        #plt.savefig("./experiments/fsi1/"+str(count)+"/lift.png"
 
         count +=1
 
@@ -179,13 +179,13 @@ def plot(sel, data_list, is_filtrated):
         count = -1
         print "Getting stuff from", sel[count]
 
-        time = np.loadtxt("./experiments/cfd3/"+str(sel[-1])+"/time.txt", delimiter=',')
-        Lift = np.loadtxt("./experiments/cfd3/"+str(sel[-1])+"/Lift.txt", delimiter=',')
-        Drag = np.loadtxt("./experiments/cfd3/"+str(sel[-1])+"/Drag.txt", delimiter=',')
+        time = np.loadtxt("./experiments/fsi1/"+str(sel[-1])+"/time.txt", delimiter=',')
+        Lift = np.loadtxt("./experiments/fsi1/"+str(sel[-1])+"/Lift.txt", delimiter=',')
+        Drag = np.loadtxt("./experiments/fsi1/"+str(sel[-1])+"/Drag.txt", delimiter=',')
         plt.figure(3)
 
         plt.subplot(221)
-        plt.title("LIFT CFD3, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+        plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
         % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
         int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
         plt.xlabel("Time Seconds")
@@ -198,7 +198,7 @@ def plot(sel, data_list, is_filtrated):
 
 
         plt.subplot(222)
-        plt.title("Drag CFD3, case = %d  " % sel[0])
+        plt.title("Drag fsi1, case = %d  " % sel[0])
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
@@ -214,7 +214,7 @@ print "################################################"
 print "Getting data from all runs, please wait ...."
 print "################################################\n"
 
-while os.path.exists("./experiments/cfd3/"+str(count)):
+while os.path.exists("./experiments/fsi1/"+str(count)):
     count += 1
 
 s = raw_input("Welcome to experiment plotter. \n"
