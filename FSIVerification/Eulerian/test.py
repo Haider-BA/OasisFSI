@@ -269,7 +269,7 @@ while t <= T:
 
     u_, p_  = udp.split(True)
 
-    vel << u_   
+    vel << u_
 
     u0, p0  = udp0.split(True)
 
@@ -305,14 +305,12 @@ if MPI.rank(mpi_comm_world()) == 0:
     name = "./experiments/fsi1/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
     f = open(name, 'w')
     f.write("""FSI1 Turek parameters\n"""
-            """Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\n,d_deg%(d_deg)g\np_deg = %(p_deg)g\n"""
+            """Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\nd_deg%(d_deg)g\np_deg = %(p_deg)g\n"""
             """solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n""" % vars())
     f.write("""Runtime = %f \n\n""" % run_time)
 
     f.write("Steady Forces:\nLift Force = %g\n"
             "Drag Force = %g\n\n" % (Lift[-1], Drag[-1]))
-    f.write("Steady Displacement:\ndisplacement_x = %g \n"
-    "displacement_y = %g \n" % (dis_x[-1], dis_y[-1]))
     f.close()
 
     np.savetxt("./experiments/fsi1/"+str(count)+"/Lift.txt", Lift, delimiter=',')
