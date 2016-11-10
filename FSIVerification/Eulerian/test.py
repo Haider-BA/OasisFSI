@@ -53,10 +53,9 @@ for coord in mesh.coordinates():
         break
 
 V1 = VectorFunctionSpace(mesh, "CG", v_deg) # Velocity
-V2 = VectorFunctionSpace(mesh, "CG", d_deg) # Structure deformation
 Q  = FunctionSpace(mesh, "CG", p_deg)       # Fluid Pressure
 
-VVQ = MixedFunctionSpace([V1,V2,Q])
+VVQ = MixedFunctionSpace([V1,Q])
 
 #Dofs and cells
 U_dof = V1.dim()
@@ -88,11 +87,16 @@ Neumann = FacetFunction("size_t",mesh, 0)
 DomainBoundary().mark(Neumann, 1)
 Bar.mark(Neumann, 0)
 Barwall.mark(Neumann, 0)
+neu = File("neu.pvd")
+neu << Neumann
 
 # Flag boundary, for balance of momentum on interface
 interface = FacetFunction("size_t", mesh)
 interface.set_all(0)
 Bar.mark(interface, 5)
+
+inter = File("inter.pvd")
+inter << interface
 
 # Full inner geometry(flag + circle) for lift/drag integral
 geometry = FacetFunction("size_t", mesh, 0)
@@ -100,10 +104,15 @@ Bar.mark(geometry, 1)
 Circle.mark(geometry, 1)
 Barwall.mark(geometry, 0)
 
+geom = File("geom.pvd")
+geom << geometry
+
 # Area functions, to set pressure = 0 in structure
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
 boundary_parts = FacetFunction("size_t", mesh, 0)
 Bar_area.mark(boundary_parts, 1)
+bararea = File("bararea.pvd")
+bararea << boundary_parts
 
 #Are functions, for variational form
 #domains = CellFunction("size_t", mesh)
@@ -143,48 +152,34 @@ g = Constant((0,-2*rho_s))
 
 
 # velocity conditions
-u_inlet   = DirichletBC(VVQ.sub(0), ((1, 0)),    boundaries, 3)
+u_inlet   = DirichletBC(VVQ.sub(0), ((1, 0)), boundaries, 3)
 u_wall    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
+u_bar    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries,  5)
 u_circ    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
-
-# Deformation conditions
-d_inlet   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 3)
-d_wall    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 2)
-d_circ    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
-d_barwall = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 7)
-d_outlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 4)
+u_struc   = DirichletBC(VVQ.sub(0), ((0, 0)), boundary_parts, 1)
 
 # Pressure Conditions
-p_out     = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
-p_barwall = DirichletBC(VVQ.sub(2), 0, boundaries, 7)
-p_struc   = DirichletBC(VVQ.sub(2), 0, boundary_parts, 1)
+p_out     = DirichletBC(VVQ.sub(1), 0, boundaries, 4)
+p_barwall = DirichletBC(VVQ.sub(1), 0, boundaries, 7)
+p_struc   = DirichletBC(VVQ.sub(1), 0, boundary_parts, 1)
 
 # Assemble boundary conditions
-bcs = [u_inlet, u_wall, u_circ, u_barwall, \
-       d_inlet, d_wall, d_circ, d_barwall, d_outlet,\
+bcs = [u_inlet, u_wall, u_circ, u_barwall, u_struc, u_bar,\
        p_out, p_barwall, p_struc]
 
 # Functions
-psi, gamma, eta = TestFunctions(VVQ)
+psi,eta = TestFunctions(VVQ)
 
 udp = Function(VVQ)
-u, d, p  = split(udp)
+u, p  = split(udp)
 
 udp0 = Function(VVQ)
-u0, d0, p0  = split(udp0)
+u0, p0  = split(udp0)
 
-d_disp = Function(V2)
 
 Re = Um*D/nu_f
 print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
-
-def Venant_Kirchhof(d):
-    I = Identity(2)
-    F = I - grad(d)
-    J = det(F)
-    E = 0.5*((inv(F.T)*inv(F))-I)
-    return inv(F)*(2.*mu_s*E + lamda*tr(E)*I)*inv(F.T)
 
 def integrateFluidStress(p, u, geo):
     ds_g = Measure("ds", subdomain_data = geo) # surface of geometry
@@ -217,35 +212,9 @@ Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx(1) \
 
 Fluid_continuity = eta*div(u)*dx(1)
 
-# Structure Variational form
 
-I = Identity(2)
-F_ = I - grad(d)
-J_ = det(F_)
-F_1 = I - grad(d0)
-J_1 = det(F_1)
-
-
-Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
-    + rho_s*( J_*theta*inner(dot(grad(u), u), psi) + J_1*(1 - theta)*inner(dot(grad(u0), u0), psi) ) \
-    + inner(J_*theta*Venant_Kirchhof(d) + (1 - theta)*J_1*Venant_Kirchhof(d0) , grad(psi))  \
-    - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2)
-
-Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
-    - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
-
-# Mesh velocity function in fluid domain
-#d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
-d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(5)
-
-#Conservation of dynamics (CHECK SIGNS!!)
-#dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
-dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
-#dynamic = - inner(Venant_Kirchhof(d)*n, psi)*dS(5) - inner(sigma_f(p, u)*n ,psi)*dS(5)
 
 F = Fluid_momentum + Fluid_continuity \
-  + Solid_momentum + Solid_deformation \
-  + d_smooth + dynamic
 
 time = []; dis_x = []; dis_y = []
 Lift = []; Drag = []
@@ -283,14 +252,10 @@ while t <= T:
 
     sol.solve()
 
-    u_, d_, p_  = udp.split(True)
+    u_,  p_  = udp.split(True)
     vel << u_
 
-    u0, d0, p0  = udp0.split(True)
-
-    d_disp.vector()[:] = d_.vector()[:] - d0.vector()[:]
-    #ALE.move(mesh, d_disp)
-    #mesh.bounding_box_tree().build(mesh)
+    u0, p0  = udp0.split(True)
 
     drag, lift =integrateFluidStress(p_, u_, geometry)
     Drag.append(drag)
@@ -300,11 +265,6 @@ while t <= T:
 
 
     udp0.assign(udp)
-
-    #vel_file << u
-
-    dis_x.append(d_(coord)[0])
-    dis_y.append(d_(coord)[1])
 
     t += dt
 
@@ -351,22 +311,6 @@ if MPI.rank(mpi_comm_world()) == 0:
     plt.legend(loc=4)
     plt.savefig("./experiments/fsi1/"+str(count)+"/drag.png")
     #plt.show()
-    plt.figure(3)
-    plt.title("Dis_x \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
-    plt.xlabel("Time Seconds")
-    plt.ylabel("Drag force Newton")
-    plt.plot(time, dis_x, label='dt  %g' % dt)
-    plt.legend(loc=4)
-    plt.savefig("./experiments/fsi1/"+str(count)+"/dis_x.png")
-
-    plt.figure(4)
-    plt.title("Dis_y \n Re = %.1f, dofs = %d, cells = %d" % (Re, U_dof, mesh_cells))
-    plt.xlabel("Time Seconds")
-    plt.ylabel("Drag force Newton")
-    plt.plot(time, dis_y, label='dt  %g' % dt)
-    plt.legend(loc=4)
-    plt.savefig("./experiments/fsi1/"+str(count)+"/dis_y.png")
-
 
     #vel_file << u
     print "DOFS", VVQ.dim()
