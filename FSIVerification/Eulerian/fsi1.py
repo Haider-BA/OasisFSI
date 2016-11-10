@@ -2,35 +2,14 @@ from dolfin import *
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import argparse
-from argparse import RawTextHelpFormatter
+from argpar import parse
+from solvers import Newton_manual
 
-parser = argparse.ArgumentParser(description="Implementation of Turek test case CFD1\n"
-"For details: http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.550.1689&rep=rep1&type=pdf",\
- formatter_class=RawTextHelpFormatter, \
-  epilog="############################################################################\n"
-  "Example --> python fsi1.py\n"
-  "############################################################################")
-group = parser.add_argument_group('Parameters')
-group.add_argument("-p_deg",  type=int, help="Set degree of pressure                     --> Default=1", default=1)
-group.add_argument("-v_deg",  type=int, help="Set degree of velocity                     --> Default=2", default=2)
-group.add_argument("-d_deg",  type=int, help="Set degree of velocity                     --> Default=1", default=1)
-group.add_argument("-T",  type=float, help="Set end time                                 --> Default=0.1", default=0.1)
-group.add_argument("-dt",  type=float, help="Set timestep                                --> Default=0.001", default=0.001)
-group.add_argument("-theta",  type=float, help="Explicit, Implicit, Cranc-Nic (0, 1, 0.5)  --> Default=1", default=1)
-group.add_argument("-discr",  help="Write out or keep tensor in variational form --> Default=keep", default="keep")
-group.add_argument("-r", "--refiner", action="count", help="Mesh-refiner using built-in FEniCS method refine(Mesh)")
-group2 = parser.add_argument_group('Solvers')
-group2.add_argument("-solver", help="Newton   -- Fenics built-in module (DEFAULT SOLVER) \n"
-"Newton2  -- Manuell implementation\n"
-"Piccard  -- Manuell implementation\n", default="Newton")
-
-args = parser.parse_args()
+args = parse()
 
 v_deg = args.v_deg
 p_deg = args.p_deg
 d_deg = args.d_deg
-solver = args.solver
 theta = args.theta
 discr = args.discr
 T = args.T
@@ -39,10 +18,10 @@ fig = False
 
 parameters['allow_extrapolation']=True
 
-#mesh = Mesh("von_karman_street_FSI_fluid.xml")
 mesh = Mesh("fluid_new.xml")
 m = "fluid_new.xml"
-#plot(mesh,interactive=True)
+
+# For refining of mesh
 if args.refiner != None:
     for i in range(args.refiner):
         mesh = refine(mesh)
@@ -92,7 +71,7 @@ Barwall.mark(Neumann, 0)
 # Flag boundary, for balance of momentum on interface
 interface = FacetFunction("size_t", mesh)
 interface.set_all(0)
-Bar.mark(interface, 5)
+Bar.mark(interface, 1)
 
 # Full inner geometry(flag + circle) for lift/drag integral
 geometry = FacetFunction("size_t", mesh, 0)
@@ -113,6 +92,7 @@ Bar_area.mark(domains, 2) #Overwrites structure domain
 
 dx = Measure("dx",subdomain_data = domains)
 ds = Measure("ds", subdomain_data = Neumann)
+ds_solid = Measure("ds", subdomain_data = boundaries)
 dS = Measure("dS", subdomain_data = interface) # For interface (interior)
 n = FacetNormal(mesh)
 
@@ -133,7 +113,6 @@ inlet = Expression(("1.5*Um*x[1]*(H - x[1]) / pow((H/2.0), 2) * (1 - cos(t*pi/2)
                         ,"0"), t = 0.0, Um = Um, H = H)
 
 #Structure properties
-#FSI 1
 rho_s = 1E3
 mu_s = 0.5E6
 nu_s = 0.4
@@ -143,7 +122,7 @@ g = Constant((0,-2*rho_s))
 
 
 # velocity conditions
-u_inlet   = DirichletBC(VVQ.sub(0), ((1, 0)),    boundaries, 3)
+u_inlet   = DirichletBC(VVQ.sub(0), inlet,    boundaries, 3)
 u_wall    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
 u_circ    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
@@ -228,18 +207,19 @@ J_1 = det(F_1)
 Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
     + rho_s*( J_*theta*inner(dot(grad(u), u), psi) + J_1*(1 - theta)*inner(dot(grad(u0), u0), psi) ) \
     + inner(J_*theta*Venant_Kirchhof(d) + (1 - theta)*J_1*Venant_Kirchhof(d0) , grad(psi))  \
-    - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2)
+    - (theta*J_*inner(g, psi) + (1-theta)*J_1*inner(g, psi) ) ) * dx(2) \
+    #- inner(J_*theta*Venant_Kirchhof(d)*n + (1 - theta)*J_1*Venant_Kirchhof(d0)*n , psi)*ds_solid(7)
 
 Solid_deformation = dot(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
 # Mesh velocity function in fluid domain
 #d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(u("-"))*n("-"),phi("-"))*dS(5)
-d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(5)
+d_smooth = inner(grad(d),grad(gamma))*dx(1) - inner(grad(d("-"))*n("-"),gamma("-"))*dS(1)
 
 #Conservation of dynamics (CHECK SIGNS!!)
 #dynamic = - inner(Venant_Kirchhof(d('+'))*n('+'), psi('+'))*dS(5) - inner(sigma_f(p('-'), u('-'))*n('-') ,psi('-'))*dS(5)
-dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(5) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
+dynamic = - inner(Venant_Kirchhof(d('-'))*n('-'), psi('-'))*dS(1) - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(5)
 #dynamic = - inner(Venant_Kirchhof(d)*n, psi)*dS(5) - inner(sigma_f(p, u)*n ,psi)*dS(5)
 
 F = Fluid_momentum + Fluid_continuity \
@@ -251,28 +231,10 @@ Lift = []; Drag = []
 #vel_file = File("./velocity/velocity.pvd")
 #vel_file << u0
 
-J = derivative(F, udp)
-
-problem = NonlinearVariationalProblem(F, udp, bcs, J)
-sol  = NonlinearVariationalSolver(problem)
-
-prm = sol.parameters
-#info(prm,True)  #get full info on the parameters
-#list_linear_solver_methods()
-parameters["ghost_mode"] = "shared_facet"
-prm['nonlinear_solver'] = 'newton'
-prm['newton_solver']['absolute_tolerance'] = 1E-7
-prm['newton_solver']['relative_tolerance'] = 1E-7
-prm['newton_solver']['maximum_iterations'] = 20
-prm['newton_solver']['relaxation_parameter'] = 1.0
-prm['newton_solver']['linear_solver'] = 'mumps'
-#prm['newton_solver']['linear_solver'] = 'lu'
-
-vel = File("velocity/vel.pvd")
 tic()
 
 #Reset counters
-
+d_up = TrialFunction(VVQ)
 J = derivative(F, udp, d_up)
 udp_res = Function(VVQ)
 
@@ -284,8 +246,9 @@ rel_res    = residual               # relative residual
 max_it    = 100                     # max iterations
 Iter = 0                            # Iteration counter
 
+#[bc.apply(udp0.vector()) for bc in bcs]
+
 while t <= T:
-    print "Time %f" % t
     time.append(t)
 
     if t < 2:
@@ -294,36 +257,17 @@ while t <= T:
     if t >= 2:
         inlet.t = 2;
 
-    while rel_res > rtol and residual > atol and Iter < max_it:
-        A = assemble(J)
-        b = assemble(-F)
-        A.ident_zeros()
-
-        [bc.apply(A, b, udp.vector()) for bc in bcs]
-
-        solve(A, udp_res.vector(), b, "mumps")
-
-        udp.vector().axpy(1., up_res.vector())
-        [bc.apply(udp.vector()) for bc in bcs]
-        rel_res = norm(up_res, 'l2')
-        residual = b.norm('l2')
-
-        if MPI.rank(mpi_comm_world()) == 0:
-            print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
-        % (Iter, residual, atol, rel_res, rtol)
-        Iter += 1
-
-    return up
-
+    Newton_manual(F, udp, bcs, J, atol, rtol, max_it, lmbda\
+                     , udp_res)
 
     u_, d_, p_  = udp.split(True)
-    vel << u_
+    #vel << u_
 
     u0, d0, p0  = udp0.split(True)
 
     d_disp.vector()[:] = d_.vector()[:] - d0.vector()[:]
-    #ALE.move(mesh, d_disp)
-    #mesh.bounding_box_tree().build(mesh)
+    ALE.move(mesh, d_disp)
+    mesh.bounding_box_tree().build(mesh)
 
     drag, lift =integrateFluidStress(p_, u_, geometry)
     Drag.append(drag)
@@ -331,8 +275,12 @@ while t <= T:
     if MPI.rank(mpi_comm_world()) == 0:
         print "Time: ",t ," drag: ",drag, "lift: ",lift
 
-
     udp0.assign(udp)
+
+    #Reset
+    residual   = 1
+    rel_res    = residual
+    Iter = 0
 
     #vel_file << u
 
@@ -344,6 +292,7 @@ while t <= T:
 run_time = toc()
 
 if MPI.rank(mpi_comm_world()) == 0:
+    """
     count = 1
     while os.path.exists("./experiments/fsi1/"+str(count)):
         count+= 1
@@ -353,10 +302,10 @@ if MPI.rank(mpi_comm_world()) == 0:
     print("Creating report file ./experiments/fsi1/"+str(count)+"/report.txt")
     name = "./experiments/fsi1/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
     f = open(name, 'w')
-    f.write("""FSI1 Turek parameters\n"""
-            """Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\n,d_deg%(d_deg)g\np_deg = %(p_deg)g\n"""
-            """solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n""" % vars())
-    f.write("""Runtime = %f \n\n""" % run_time)
+    f.write("FSI1 Turek parameters\n"
+            "Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\n,d_deg%(d_deg)g\np_deg = %(p_deg)g\n"
+            "solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n" % vars())
+    f.write("Runtime = %f \n\n" % run_time)
 
     f.write("Steady Forces:\nLift Force = %g\n"
             "Drag Force = %g\n\n" % (Lift[-1], Drag[-1]))
@@ -399,11 +348,12 @@ if MPI.rank(mpi_comm_world()) == 0:
     plt.plot(time, dis_y, label='dt  %g' % dt)
     plt.legend(loc=4)
     plt.savefig("./experiments/fsi1/"+str(count)+"/dis_y.png")
-
-
+    """
     #vel_file << u
     print "DOFS", VVQ.dim()
     print "Cells", mesh.num_vertices()
     print "Discretization theta = %g" % theta
     print "Lift %g" % Lift[-1]
     print "Drag %g" % Drag[-1]
+    print "Displacement x %g" % dis_x[-1]
+    print "displacement_y %g" % dis_y[-1]
