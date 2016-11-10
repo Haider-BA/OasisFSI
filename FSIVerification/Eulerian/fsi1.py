@@ -158,12 +158,11 @@ d_outlet  = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 4)
 # Pressure Conditions
 p_out     = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
 p_barwall = DirichletBC(VVQ.sub(2), 0, boundaries, 7)
-p_struc   = DirichletBC(VVQ.sub(2), 0, boundary_parts, 1)
 
 # Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
        d_inlet, d_wall, d_circ, d_barwall, d_outlet,\
-       p_out, p_barwall, p_struc]
+       p_out, p_barwall]
 
 # Functions
 psi, gamma, eta = TestFunctions(VVQ)
@@ -271,6 +270,20 @@ prm['newton_solver']['linear_solver'] = 'mumps'
 
 vel = File("velocity/vel.pvd")
 tic()
+
+#Reset counters
+
+J = derivative(F, udp, d_up)
+udp_res = Function(VVQ)
+
+#Solver parameters
+atol, rtol = 1e-7, 1e-7             # abs/rel tolerances
+lmbda = 1.0                         # relaxation parameter
+residual   = 1                      # residual (To initiate)
+rel_res    = residual               # relative residual
+max_it    = 100                     # max iterations
+Iter = 0                            # Iteration counter
+
 while t <= T:
     print "Time %f" % t
     time.append(t)
@@ -281,7 +294,27 @@ while t <= T:
     if t >= 2:
         inlet.t = 2;
 
-    sol.solve()
+    while rel_res > rtol and residual > atol and Iter < max_it:
+        A = assemble(J)
+        b = assemble(-F)
+        A.ident_zeros()
+
+        [bc.apply(A, b, udp.vector()) for bc in bcs]
+
+        solve(A, udp_res.vector(), b, "mumps")
+
+        udp.vector().axpy(1., up_res.vector())
+        [bc.apply(udp.vector()) for bc in bcs]
+        rel_res = norm(up_res, 'l2')
+        residual = b.norm('l2')
+
+        if MPI.rank(mpi_comm_world()) == 0:
+            print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
+        % (Iter, residual, atol, rel_res, rtol)
+        Iter += 1
+
+    return up
+
 
     u_, d_, p_  = udp.split(True)
     vel << u_

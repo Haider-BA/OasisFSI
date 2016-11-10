@@ -9,8 +9,8 @@ def parse():
     "-  For details of numerical benchmark go to:\n   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.550.1689&rep=rep1&type=pdf",\
      formatter_class=RawTextHelpFormatter, \
      epilog="############################################################################\n"
-     "Example --> python cfd.py -T 0.02 -dt 0.01 -v_deg 2 -p_deg 1 -solver Newton\n"
-     "Example --> python cfd.py -solver Newton2  -v_deg 2 -p_deg 1 -r  (Refines mesh one time, -rr for two etc.) \n"
+     "Example --> python cfd.py -case 1 -T 0.02 -dt 0.01 -v_deg 2 -p_deg 1 -solver Newton\n"
+     "Example --> python cfd.py -case 2 -solver Newton2  -v_deg 2 -p_deg 1 -r  (Refines mesh one time, -rr for two etc.) \n"
      "############################################################################")
     group = parser.add_argument_group('Parameters')
     group.add_argument("-case",               help="Define which cfd case to run               --> Default=1", default="1")

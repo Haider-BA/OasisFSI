@@ -93,7 +93,7 @@ neu << Neumann
 # Flag boundary, for balance of momentum on interface
 interface = FacetFunction("size_t", mesh)
 interface.set_all(0)
-Bar.mark(interface, 5)
+Bar.mark(interface, 1)
 
 inter = File("inter.pvd")
 inter << interface
@@ -122,6 +122,7 @@ Bar_area.mark(domains, 2) #Overwrites structure domain
 
 dx = Measure("dx",subdomain_data = domains)
 ds = Measure("ds", subdomain_data = Neumann)
+#ds = Measure("ds", subdomain_data = boundaries)
 dS = Measure("dS", subdomain_data = interface) # For interface (interior)
 n = FacetNormal(mesh)
 
@@ -152,21 +153,18 @@ g = Constant((0,-2*rho_s))
 
 
 # velocity conditions
-u_inlet   = DirichletBC(VVQ.sub(0), ((1, 0)), boundaries, 3)
+u_inlet   = DirichletBC(VVQ.sub(0), inlet, boundaries, 3)
 u_wall    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 2)
-u_bar    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries,  5)
-u_circ    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6) #No slip on geometry in fluid
+u_geo = DirichletBC(VVQ.sub(0), ((0, 0)), geometry, 1)
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
-u_struc   = DirichletBC(VVQ.sub(0), ((0, 0)), boundary_parts, 1)
 
 # Pressure Conditions
 p_out     = DirichletBC(VVQ.sub(1), 0, boundaries, 4)
 p_barwall = DirichletBC(VVQ.sub(1), 0, boundaries, 7)
-p_struc   = DirichletBC(VVQ.sub(1), 0, boundary_parts, 1)
 
 # Assemble boundary conditions
-bcs = [u_inlet, u_wall, u_circ, u_barwall, u_struc, u_bar,\
-       p_out, p_barwall, p_struc]
+bcs = [u_inlet, u_wall, u_barwall, u_geo,\
+       p_out, p_barwall]
 
 # Functions
 psi,eta = TestFunctions(VVQ)
@@ -208,54 +206,76 @@ def eps(v):
 Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx(1) \
     + rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
     + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx(1) \
-    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(1)
+    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds \
+    - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(1)
+    #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(2) \
+    #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(3) \
+    #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(4) \
+    #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(6) \
+    #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*dS(1)
 
 Fluid_continuity = eta*div(u)*dx(1)
-
 
 
 F = Fluid_momentum + Fluid_continuity \
 
 time = []; dis_x = []; dis_y = []
 Lift = []; Drag = []
-#vel_file = File("./velocity/velocity.pvd")
-#vel_file << u0
 
-J = derivative(F, udp)
-
-problem = NonlinearVariationalProblem(F, udp, bcs, J)
-sol  = NonlinearVariationalSolver(problem)
-
-prm = sol.parameters
 #info(prm,True)  #get full info on the parameters
 #list_linear_solver_methods()
-parameters["ghost_mode"] = "shared_facet"
-prm['nonlinear_solver'] = 'newton'
-prm['newton_solver']['absolute_tolerance'] = 1E-7
-prm['newton_solver']['relative_tolerance'] = 1E-7
-prm['newton_solver']['maximum_iterations'] = 20
-prm['newton_solver']['relaxation_parameter'] = 1.0
-prm['newton_solver']['linear_solver'] = 'mumps'
-#prm['newton_solver']['linear_solver'] = 'lu'
 
 vel = File("velocity/vel.pvd")
 tic()
+d_up = TrialFunction(VVQ)
+J = derivative(F, udp, d_up)
+udp_res = Function(VVQ)
+
+#Solver parameters
+atol, rtol = 1e-7, 1e-7             # abs/rel tolerances
+lmbda = 1.0                         # relaxation parameter
+residual   = 1                      # residual (To initiate)
+rel_res    = residual               # relative residual
+max_it    = 100                     # max iterations
+Iter = 0                            # Iteration counter
+
 while t <= T:
     print "Time %f" % t
     time.append(t)
 
     if t < 2:
-        #inlet.t = t;
-        inlet.t = 2;
+        inlet.t = t;
     if t >= 2:
         inlet.t = 2;
 
-    sol.solve()
+    while rel_res > rtol and residual > atol and Iter < max_it:
+        A = assemble(J, keep_diagonal=True)
+        b = assemble(-F)
+        A.ident_zeros()
 
-    u_,  p_  = udp.split(True)
-    vel << u_
+        [bc.apply(A, b, udp.vector()) for bc in bcs]
+
+        solve(A, udp_res.vector(), b, "mumps")
+
+        udp.vector().axpy(1., udp_res.vector())
+        [bc.apply(udp.vector()) for bc in bcs]
+        rel_res = norm(udp_res, 'l2')
+        residual = b.norm('l2')
+
+        if MPI.rank(mpi_comm_world()) == 0:
+            print "Newton iteration %d: r (atol) = %.3e (tol = %.3e), r (rel) = %.3e (tol = %.3e) " \
+        % (Iter, residual, atol, rel_res, rtol)
+        Iter += 1
+
+    u_, p_  = udp.split(True)
+
+    vel << u_   
 
     u0, p0  = udp0.split(True)
+
+    #d_disp.vector()[:] = d_.vector()[:] - d0.vector()[:]
+    #ALE.move(mesh, d_disp)
+    #mesh.bounding_box_tree().build(mesh)
 
     drag, lift =integrateFluidStress(p_, u_, geometry)
     Drag.append(drag)
@@ -266,6 +286,10 @@ while t <= T:
 
     udp0.assign(udp)
 
+    #Reset counters
+    Iter      = 0
+    residual   = 1
+    rel_res    = residual
     t += dt
 
 run_time = toc()

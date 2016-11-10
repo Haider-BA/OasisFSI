@@ -24,13 +24,12 @@ def Newton_manual(F, up, bcs, J, atol, rtol, max_it, lmbda\
     residual   = 1
     rel_res    = residual
     while rel_res > rtol and residual > atol and Iter < max_it:
-
         A = assemble(J)
         b = assemble(-F)
 
         [bc.apply(A, b, up.vector()) for bc in bcs]
 
-        solve(A, up_res.vector(), b)
+        solve(A, up_res.vector(), b, "mumps")
 
         up.vector().axpy(1., up_res.vector())
         [bc.apply(up.vector()) for bc in bcs]

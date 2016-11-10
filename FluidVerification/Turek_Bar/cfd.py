@@ -12,8 +12,6 @@ theta = args.theta
 fig = False
 
 Um = 0
-print "HERE"
-print case
 if case == "1":
     Um = 0.2
 if case == "2":
@@ -31,7 +29,7 @@ rho = 1000.
 mu = rho*nu
 
 # Refines mesh
-m = "Mesh/turek1.xml"
+m = "mesh/turek1.xml"
 mesh = Mesh(m)
 Drag = []; Lift = []; time = []
 if args.refiner != None:
@@ -125,7 +123,7 @@ if MPI.rank(mpi_comm_world()) == 0:
     print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
     print "DOF = %f,  cells = %f" % (U_dof, mesh_cells)
 
-vel_file = File("velocity/vel1y.pvd")
+vel_file = File("velocity/vel.pvd")
 tic()
 
 #Main time iterator
@@ -146,7 +144,7 @@ while t <= T:
     u_, p_ = up.split(True)
     up0.assign(up)
 
-    #vel_file << u_
+    vel_file << u_
 
     drag, lift =integrateFluidStress(p_, u_)
     Drag.append(drag)
