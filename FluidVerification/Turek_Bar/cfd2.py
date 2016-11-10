@@ -199,7 +199,7 @@ def fluid(mesh, T, dt, solver, fig, v_deg, p_deg, theta, m, discr):
             Lift.append(lift)
 
             t += dt
-
+    run_time = toc()
     if solver == "Newton2":
         tic()
 
