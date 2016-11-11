@@ -156,5 +156,5 @@ while t <= T:
 
 run_time = toc()
 
-#if MPI.rank(mpi_comm_world()) == 0:
-#    postpro(Lift, Drag, time, Re, m, U_dof, run_time, mesh_cells, case)
+if MPI.rank(mpi_comm_world()) == 0:
+    postpro(Lift, Drag, time, Re, m, U_dof, run_time, mesh_cells, case)

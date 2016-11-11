@@ -4,26 +4,26 @@ Re = 200
 mesh = turek2.xml
 DOF = 306580
 T = 14
-dt = 0.01
+dt = 0.001
 v_deg = 2
 p_deg = 1
 solver = Newton
 theta_scheme = 1.0
 Discretization = keep
-Runtime = 3619.703535 
+Runtime = 41948.008275 
 
-Max Lift Force = 50.0944
+Max Lift Force = 396.233
 
-Min Lift Force = -113.015
+Min Lift Force = -478.528
 
-Max Drag Force = 440.362
+Max Drag Force = 446.407
 
 Min Drag Force = 0
 
-Mean Lift Force = -31.4604
+Mean Lift Force = -41.1474
 
-Mean Drag Force = 220.181
+Mean Drag Force = 223.203
 
-Amplitude Lift Force = 81.5549
+Amplitude Lift Force = 437.381
 
-Amplitude Drag Force = 220.181
+Amplitude Drag Force = 223.203

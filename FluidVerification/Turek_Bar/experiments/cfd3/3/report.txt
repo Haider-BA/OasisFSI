@@ -8,22 +8,22 @@ dt = 0.001
 v_deg = 2
 p_deg = 1
 solver = Newton
-theta_scheme = 1.0
-Discretization = keep
-Runtime = 2554.056937 
+theta_scheme = 0.5
+Discretization = split
+Runtime = 2656.384061 
 
-Max Lift Force = 518.476
+Max Lift Force = 453.744
 
-Min Lift Force = -552.167
+Min Lift Force = -472.963
 
-Max Drag Force = 444.869
+Max Drag Force = 440.456
 
 Min Drag Force = 0
 
-Mean Lift Force = -16.8452
+Mean Lift Force = -9.60975
 
-Mean Drag Force = 222.435
+Mean Drag Force = 220.228
 
-Amplitude Lift Force = 535.321
+Amplitude Lift Force = 463.354
 
-Amplitude Drag Force = 222.435
+Amplitude Drag Force = 220.228
