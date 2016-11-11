@@ -181,9 +181,6 @@ print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
 
 def integrateFluidStress(p, u, geo):
     ds_g = Measure("ds", subdomain_data = geo) # surface of geometry
-    #test3 = File("geo3.pvd")
-    #test3 << geometry
-
     eps   = 0.5*(grad(u) + grad(u).T)
     sig   = -p*Identity(2) + 2.0*mu_f*eps
 
@@ -193,7 +190,6 @@ def integrateFluidStress(p, u, geo):
     forceY  = traction[1]*ds_g(1)
     fX      = assemble(forceX)
     fY      = assemble(forceY)
-
     return fX, fY
 
 def sigma_f(p, u):
@@ -257,7 +253,7 @@ while t <= T:
         [bc.apply(A, b, udp.vector()) for bc in bcs]
 
         solve(A, udp_res.vector(), b, "mumps")
-	#solve(A, udp_res.vector(), b, "superlu_dist")	
+	#solve(A, udp_res.vector(), b, "superlu_dist")
 
         udp.vector().axpy(1., udp_res.vector())
         [bc.apply(udp.vector()) for bc in bcs]
@@ -270,22 +266,14 @@ while t <= T:
         Iter += 1
 
     u_, p_  = udp.split(True)
-
-    #vel << u_
-
     u0, p0  = udp0.split(True)
-
-    #d_disp.vector()[:] = d_.vector()[:] - d0.vector()[:]
-    #ALE.move(mesh, d_disp)
-    #mesh.bounding_box_tree().build(mesh)
-
     drag, lift =integrateFluidStress(p_, u_, geometry)
     Drag.append(drag)
     Lift.append(lift)
     if MPI.rank(mpi_comm_world()) == 0:
         print "Time: ",t ," drag: ",drag, "lift: ",lift
 
-
+    #vel << u_
     udp0.assign(udp)
 
     #Reset counters
@@ -297,6 +285,7 @@ while t <= T:
 run_time = toc()
 
 if MPI.rank(mpi_comm_world()) == 0:
+    """
     count = 1
     while os.path.exists("./experiments/fsi1/"+str(count)):
         count+= 1
@@ -306,10 +295,10 @@ if MPI.rank(mpi_comm_world()) == 0:
     print("Creating report file ./experiments/fsi1/"+str(count)+"/report.txt")
     name = "./experiments/fsi1/"+str(count)+"/report.txt"  # Name of text file coerced with +.txt
     f = open(name, 'w')
-    f.write("""FSI1 Turek parameters\n"""
-            """Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\nd_deg%(d_deg)g\np_deg = %(p_deg)g\n"""
-            """solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n""" % vars())
-    f.write("""Runtime = %f \n\n""" % run_time)
+    f.write("FSI1 Turek parameters\n"
+            "Re = %(Re)g \nmesh = %(m)s\nDOF = %(U_dof)d\nT = %(T)g\ndt = %(dt)g\nv_deg = %(v_deg)g\nd_deg%(d_deg)g\np_deg = %(p_deg)g\n"
+            "solver = %(solver)s\ntheta_scheme = %(theta).1f\nDiscretization = %(discr)s\n" % vars())
+    f.write("Runtime = %f \n\n" % run_time)
 
     f.write("Steady Forces:\nLift Force = %g\n"
             "Drag Force = %g\n\n" % (Lift[-1], Drag[-1]))
@@ -335,8 +324,8 @@ if MPI.rank(mpi_comm_world()) == 0:
     plt.legend(loc=4)
     plt.savefig("./experiments/fsi1/"+str(count)+"/drag.png")
     #plt.show()
+    """
 
-    #vel_file << u
     print "DOFS", VVQ.dim()
     print "Cells", mesh.num_vertices()
     print "Discretization theta = %g" % theta

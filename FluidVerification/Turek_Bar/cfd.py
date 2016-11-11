@@ -144,7 +144,7 @@ while t <= T:
     u_, p_ = up.split(True)
     up0.assign(up)
 
-    #vel_file << u_
+    ##vel_file << u_
 
     drag, lift =integrateFluidStress(p_, u_)
     Drag.append(drag)
@@ -156,5 +156,5 @@ while t <= T:
 
 run_time = toc()
 
-if MPI.rank(mpi_comm_world()) == 0:
-    postpro(Lift, Drag, time, Re, m, U_dof, run_time, mesh_cells, case)
+#if MPI.rank(mpi_comm_world()) == 0:
+#    postpro(Lift, Drag, time, Re, m, U_dof, run_time, mesh_cells, case)
