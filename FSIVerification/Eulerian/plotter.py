@@ -209,7 +209,7 @@ def plot(sel, data_list, is_filtrated):
 
 
 count = 1
-get = ["Re", "DOF", "T", "dt", "solver", "theta_scheme", "Discretization", "time", "mesh"]
+get = ["Re", "DOF", "T", "dt", "v_deg", "p_deg", "theta_scheme", "Discretization", "time", "mesh"]
 print "################################################"
 print "Getting data from all runs, please wait ...."
 print "################################################\n"
