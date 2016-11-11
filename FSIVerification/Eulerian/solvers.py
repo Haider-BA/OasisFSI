@@ -8,13 +8,13 @@ def Newton_manual(F, udp, bcs, J, atol, rtol, max_it, lmbda\
     residual   = 1
     rel_res    = residual
     while rel_res > rtol and residual > atol and Iter < max_it:
-        A = assemble(J, keep_diagonal=True)
+        A = assemble(J)
         A.ident_zeros()
         b = assemble(-F)
 
         [bc.apply(A, b, udp.vector()) for bc in bcs]
 
-        solve(A, udp_res.vector(), b, "mumps")
+        solve(A, udp_res.vector(), b, "superlu_dist")
 
         udp.vector().axpy(1., udp_res.vector())
         [bc.apply(udp.vector()) for bc in bcs]
