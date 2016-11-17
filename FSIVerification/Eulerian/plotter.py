@@ -67,20 +67,10 @@ def plot(sel, data_list, is_filtrated):
             % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
             int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
-            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([1, 12, -540, 540])
-
         if is_filtrated == True:
             plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
             % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
             int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
-
-            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([1, 12, -540, 540])
 
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
@@ -92,17 +82,6 @@ def plot(sel, data_list, is_filtrated):
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
 
-        if is_filtrated == False:
-            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([9, 9.6, 430, 450])
-
-        if is_filtrated == True:
-            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([9, 9.6, 430, 450])
 
         count +=1
 
@@ -123,21 +102,11 @@ def plot(sel, data_list, is_filtrated):
             % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
             int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
-            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([1, 12, -540, 540])
 
         if is_filtrated == True:
             plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
             % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
             int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
-
-            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([1, 12, -540, 540])
-
 
         #% (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
         #int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
@@ -156,18 +125,6 @@ def plot(sel, data_list, is_filtrated):
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton\nTEst\nthis")
         plt.plot(time, Drag)
-
-        if is_filtrated == False:
-            if float(data_list[sel[count]-1]["dt"]) == 0.01 and float(data_list[sel[count]-1]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([9, 9.6, 430, 450])
-
-        if is_filtrated == True:
-            if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
-                print
-            else:
-                plt.axis([9, 9.6, 430, 450])
 
         #plt.legend(loc=4)
         #plt.savefig("./experiments/fsi1/"+str(count)+"/lift.png"
@@ -191,21 +148,12 @@ def plot(sel, data_list, is_filtrated):
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")
         plt.plot(time, Lift)
-        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
-            print
-        else:
-            plt.axis([4, 12, -540, 540])
-
 
         plt.subplot(222)
         plt.title("Drag fsi1, case = %d  " % sel[0])
         plt.xlabel("Time Seconds")
         plt.ylabel("Drag force Newton")
         plt.plot(time, Drag)
-        if float(data_list[count]["dt"]) == 0.01 and float(data_list[count]["theta_scheme"]) == 1.0:
-            print
-        else:
-            plt.axis([9, 9.6, 430, 450])
 
 
 count = 1

@@ -202,7 +202,7 @@ def eps(v):
 Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx(1) \
     + rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
     + inner(theta*sigma_f(p, u) + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx(1) \
-    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds \
+    - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, eps(psi))*ds \
     - inner(sigma_f(p('+'), u('+'))*n('+') ,psi('+'))*dS(1)
     #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(2) \
     #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(3) \
@@ -241,7 +241,7 @@ while t <= T:
     time.append(t)
 
     if t < 2:
-        inlet.t = t;
+        inlet.t = 2;
     if t >= 2:
         inlet.t = 2;
 
@@ -273,9 +273,12 @@ while t <= T:
     if MPI.rank(mpi_comm_world()) == 0:
         print "Time: ",t ," drag: ",drag, "lift: ",lift
 
-    #vel << u_
+    u_.rename("u", "velocity")
+    vel << u_
     udp0.assign(udp)
 
+    print "DS", assemble(inner(sigma_f(p_('+'), u_('+')), sigma_f(p_('+'), u_('+')))**0.5*dS(1))
+    print "U", assemble(inner(u_,u_)**0.5*dS(1))
     #Reset counters
     Iter      = 0
     residual   = 1
