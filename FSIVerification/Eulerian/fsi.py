@@ -64,6 +64,8 @@ V2 = VectorFunctionSpace(mesh, "CG", d_deg) # Structure deformation
 Q  = FunctionSpace(mesh, "CG", p_deg)       # Fluid Pressure
 VVQ = MixedFunctionSpace([V1,V2,Q])
 
+ma = VectorFunctionSpace(mesh, "CG", 1) # Velocity
+
 #Dofs and cells
 U_dof = VVQ.dim()
 mesh_cells = mesh.num_cells()
@@ -78,13 +80,6 @@ Barwall =  AutoSubDomain(lambda x: "on_boundary" and (( (x[0] - 0.2)*(x[0] - 0.2
 
 #Areas
 Bar_area = AutoSubDomain(lambda x: (0.19 <= x[1] <= 0.21) and 0.24<= x[0] <= 0.6) # only the "flag" or "bar"
-
-#Bar_area_inner_facet = AutoSubDomain(lambda x: (0.19 < x[1] < 0.21) and 0.24< x[0] < 0.6) # only the "flag" or "bar"
-#test = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
-#test.set_all(0)
-#Bar_area_inner_facet.mark(test, 1)
-#test_file = File("test.pvd")
-#test_file << test
 
 # FacetFunction for surfaces
 boundaries = FacetFunction("size_t",mesh)
@@ -149,6 +144,10 @@ u_circ    = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 6)
 u_barwall = DirichletBC(VVQ.sub(0), ((0, 0)), boundaries, 7)
 
 # Deformation conditions
+d_inlet   = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 3)
+d_wall    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 2)
+d_out     = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 4)
+d_circ    = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 6)
 d_barwall = DirichletBC(VVQ.sub(1), ((0, 0)), boundaries, 7)
 
 # Pressure Conditions
@@ -157,7 +156,7 @@ p_out     = DirichletBC(VVQ.sub(2), 0, boundaries, 4)
 
 # Assemble boundary conditions
 bcs = [u_inlet, u_wall, u_circ, u_barwall, \
-       d_barwall, \
+       d_inlet, d_wall, d_out, d_circ, d_barwall, \
        p_out]
 
 # Functions
@@ -173,10 +172,10 @@ u0, d0, p0  = split(udp0)
 Fluid_momentum = (rho_f/k)*inner(u - u0, psi)*dx(1) \
                 + rho_f*(theta*inner(dot(grad(u), u), psi) + (1 - theta)*inner(dot(grad(u0), u0), psi) )*dx(1) \
                 + inner(theta*sigma_f(p, u)   + (1 - theta)*sigma_f(p0, u0), eps(psi))*dx(1) \
-                - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(2) \
-                - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(3) \
-                - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(4) \
-                - inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(6)
+                #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(2) \
+                #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(3) \
+                #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(4) \
+                #- inner(theta*sigma_f(p, u)*n + (1 - theta)*sigma_f(p0, u0)*n, psi)*ds(6)
 
 
 Fluid_continuity = eta*div(u)*dx(1)
@@ -195,31 +194,15 @@ Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
 Solid_deformation = inner(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
                     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
+F_laplace = inner(grad(d), grad(gamma))*dx(1) # 1./k*inner(d - d0, gamma)*dx(1) +
 
 F = Fluid_momentum + Fluid_continuity \
-  + Solid_momentum + Solid_deformation
+  + Solid_momentum + Solid_deformation + F_laplace
 
 #Reset counters
 d_up = TrialFunction(VVQ)
 J = derivative(F, udp, d_up)
 udp_res = Function(VVQ)
-
-W = VectorFunctionSpace(mesh, 'CG', 1)
-w = TrialFunction(W)
-chi = TestFunction(W)
-w_ = Function(W)
-w0 = Function(W)
-
-# mesh deformation
-w_inlet   = DirichletBC(W, ((0, 0)), boundaries, 3)
-w_wall    = DirichletBC(W, ((0, 0)), boundaries, 2)
-w_out     = DirichletBC(W, ((0, 0)), boundaries, 4)
-w_circ    = DirichletBC(W, ((0, 0)), boundaries, 6)
-w_barwall = DirichletBC(W, ((0, 0)), boundaries, 7)
-
-bcs_w = [w_inlet, w_wall, w_out, w_circ, w_barwall]
-
-F_W = inner(w - (d - d0), chi)*dx(2) + 1./k*inner(w - w0, chi)*dx(1)+ inner(grad(w), grad(chi))*dx(1) #+ 1./k*inner(w - w0, chi)*dx(1)
 
 #Solver parameters
 atol, rtol = 1e-10, 1e-10             # abs/rel tolerances
@@ -242,6 +225,7 @@ def_file << d0
 Re = Um*D/nu_f
 print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
 tic()
+
 while t <= T:
     time.append(t)
 
@@ -253,23 +237,23 @@ while t <= T:
     Newton_manual(F, udp, bcs, J, atol, rtol, max_it, lmbda\
                      , udp_res)
 
-    u, d, p  = udp.split(True)
-    u.rename("u", "velocity")
-    vel_file << u
-    d.rename("d", "deformation")
-    def_file << d
+    u_, d_, p_  = udp.split(True)
+    u_.rename("u", "velocity")
+    vel_file << u_
+    d_.rename("d", "deformation")
+    def_file << d_
 
 
     u0, d0, p0  = udp0.split(True)
 
+    test = interpolate(d_, ma)
+
     # Mesh deformation function in fluid domain
 
-    solve(lhs(F_W) == rhs(F_W), w_, bcs_w)
-    w0.assign(w_)
-    ALE.move(mesh, w_)
+    ALE.move(mesh, test)
     mesh.bounding_box_tree().build(mesh)
 
-    drag, lift =integrateFluidStress(p, u, geometry)
+    drag, lift =integrateFluidStress(p_, u_, geometry)
     Drag.append(drag)
     Lift.append(lift)
     if MPI.rank(mpi_comm_world()) == 0:
@@ -277,8 +261,8 @@ while t <= T:
 
     udp0.assign(udp)
 
-    dis_x.append(d(coord)[0])
-    dis_y.append(d(coord)[1])
+    dis_x.append(d_(coord)[0])
+    dis_y.append(d_(coord)[1])
 
     t += dt
 

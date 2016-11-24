@@ -63,13 +63,13 @@ def plot(sel, data_list, is_filtrated):
         #int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
         if is_filtrated == False:
-            plt.title("LIFT FSI1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-            % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+            plt.title("LIFT FSI1, case = %d\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count], data_list[sel[count]-1]["Re"],\
             int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
         if is_filtrated == True:
-            plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-            % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
+            plt.title("LIFT fsi1, case = %d\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count], data_list[count]["Re"],\
             int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
 
         plt.xlabel("Time Seconds")
@@ -98,14 +98,14 @@ def plot(sel, data_list, is_filtrated):
         #int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
         if is_filtrated == False:
-            plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-            % (sel[count],  data_list[sel[count]-1]["Discretization"], data_list[sel[count]-1]["Re"],\
+            plt.title("LIFT fsi1, case = %d\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count], data_list[sel[count]-1]["Re"],\
             int(data_list[sel[count]-1]["DOF"]), float(data_list[sel[count]-1]["dt"]), float(data_list[sel[count]-1]["theta_scheme"]) ))
 
 
         if is_filtrated == True:
-            plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-            % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
+            plt.title("LIFT fsi1, case = %d\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+            % (sel[count], data_list[count]["Re"],\
             int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
 
         #% (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
@@ -142,8 +142,8 @@ def plot(sel, data_list, is_filtrated):
         plt.figure(3)
 
         plt.subplot(221)
-        plt.title("LIFT fsi1, case = %d, discr = %s\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
-        % (sel[count],  data_list[count]["Discretization"], data_list[count]["Re"],\
+        plt.title("LIFT fsi1, case = %d\n Re=%s, Dof=%d, dt=%.3f, theta=%.1f" \
+        % (sel[count], data_list[count]["Re"],\
         int(data_list[count]["DOF"]), float(data_list[count]["dt"]), float(data_list[count]["theta_scheme"]) ))
         plt.xlabel("Time Seconds")
         plt.ylabel("Lift force Newton")

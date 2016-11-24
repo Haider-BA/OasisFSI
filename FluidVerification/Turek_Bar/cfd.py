@@ -144,7 +144,7 @@ while t <= T:
     u_, p_ = up.split(True)
     up0.assign(up)
 
-    ##vel_file << u_
+    vel_file << u_
 
     drag, lift =integrateFluidStress(p_, u_)
     Drag.append(drag)

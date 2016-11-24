@@ -27,4 +27,9 @@ def Newton_manual(F, udp, bcs, J, atol, rtol, max_it, lmbda\
         % (Iter, residual, atol, rel_res, rtol)
         Iter += 1
 
+    #Reset
+    residual   = 1
+    rel_res    = residual
+    Iter = 0
+
     #return udp
