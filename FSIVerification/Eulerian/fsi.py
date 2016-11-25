@@ -225,7 +225,7 @@ def_file << d0
 Re = Um*D/nu_f
 print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
 tic()
-
+count = 0
 while t <= T:
     time.append(t)
 
@@ -238,10 +238,12 @@ while t <= T:
                      , udp_res)
 
     u_, d_, p_  = udp.split(True)
-    u_.rename("u", "velocity")
-    vel_file << u_
-    d_.rename("d", "deformation")
-    def_file << d_
+    if count % 10 == 0:
+        print "here"
+        u_.rename("u", "velocity")
+        vel_file << u_
+        d_.rename("d", "deformation")
+        def_file << d_
 
 
     u0, d0, p0  = udp0.split(True)
@@ -264,6 +266,7 @@ while t <= T:
     dis_x.append(d_(coord)[0])
     dis_y.append(d_(coord)[1])
 
+    count += 1
     t += dt
 
 run_time = toc()
