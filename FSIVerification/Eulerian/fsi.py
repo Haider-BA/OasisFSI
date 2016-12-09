@@ -64,7 +64,7 @@ V2 = VectorFunctionSpace(mesh, "CG", d_deg) # Structure deformation
 Q  = FunctionSpace(mesh, "CG", p_deg)       # Fluid Pressure
 VVQ = MixedFunctionSpace([V1,V2,Q])
 
-ma = VectorFunctionSpace(mesh, "CG", 1) # Velocity
+V3 = VectorFunctionSpace(mesh, "CG", 1) # For interpolation of deformation to ALE.move()
 
 #Dofs and cells
 U_dof = VVQ.dim()
@@ -107,7 +107,7 @@ Bar_area.mark(domains, 2) #Overwrites to structure domain
 
 dx = Measure("dx", subdomain_data = domains)
 ds = Measure("ds", subdomain_data = boundaries)
-dS = Measure("ds", subdomain_data = boundaries) # For interface (interior)
+dS = Measure("dS", subdomain_data = boundaries) # For interface (interior)
 n = FacetNormal(mesh)
 
 # List for storing parameters
@@ -194,7 +194,7 @@ Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
 Solid_deformation = inner(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
                     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
-F_laplace = inner(grad(d), grad(gamma))*dx(1) # 1./k*inner(d - d0, gamma)*dx(1) +
+F_laplace = inner(grad(d), grad(gamma))*dx(1) + 1./k*inner(d - d0, gamma)*dx(1)
 
 F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation + F_laplace
@@ -205,7 +205,7 @@ J = derivative(F, udp, d_up)
 udp_res = Function(VVQ)
 
 #Solver parameters
-atol, rtol = 1e-10, 1e-10             # abs/rel tolerances
+atol, rtol = 1e-6, 1e-6             # abs/rel tolerances
 lmbda = 1.0                         # relaxation parameter
 residual   = 1                      # residual (To initiate)
 rel_res    = residual               # relative residual
@@ -219,13 +219,14 @@ def_file = File("./deformation/def.pvd")
 u0, d0, p0  = udp0.split(True)
 u0.rename("u", "velocity")
 d0.rename("d", "deformation")
-vel_file << u0
-def_file << d0
+#vel_file << u0
+#def_file << d0
 
 Re = Um*D/nu_f
 print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
 tic()
 count = 0
+
 while t <= T:
     time.append(t)
 
@@ -234,42 +235,42 @@ while t <= T:
     if t >= 2:
         inlet.t = 2;
 
-    Newton_manual(F, udp, bcs, J, atol, rtol, max_it, lmbda\
-                     , udp_res)
+    Newton_manual(F, udp, bcs, J, atol, rtol, max_it, lmbda, udp_res)
 
     u_, d_, p_  = udp.split(True)
-    if count % 10 == 0:
-        print "here"
-        u_.rename("u", "velocity")
-        vel_file << u_
-        d_.rename("d", "deformation")
-        def_file << d_
-
+    #if count % 10 == 0:
+        #print "here"
+        #u_.rename("u", "velocity")
+        #vel_file << u_
+        #d_.rename("d", "deformation")
+        #def_file << d_
 
     u0, d0, p0  = udp0.split(True)
 
-    test = interpolate(d_, ma)
+    drag = -assemble((sigma_f(p_, u_)*n)[0]*ds(6)) - assemble((sigma_f(p_('-'), u_('-'))* n('-'))[0]*dS(5))
+    lift = -assemble((sigma_f(p_, u_)*n)[1]*ds(6)) - assemble((sigma_f(p_('-'), u_('-'))* n('-'))[1]*dS(5))
 
     # Mesh deformation function in fluid domain
-
-    ALE.move(mesh, test)
+    to_move = interpolate(d_, V3)
+    ALE.move(mesh, to_move)
     mesh.bounding_box_tree().build(mesh)
 
-    drag, lift =integrateFluidStress(p_, u_, geometry)
-    Drag.append(drag)
-    Lift.append(lift)
+    #drag, lift =integrateFluidStress(p_, u_, geometry)
+    #Drag.append(drag)
+    #Lift.append(lift)
     if MPI.rank(mpi_comm_world()) == 0:
-        print "Time: ",t ," drag: ",drag, "lift: ",lift
+        print "Time: ",t ," drag: ",drag, "lift: ",lift, "dis_x: ", d_(coord)[0], "dis_y: ", d_(coord)[1]
 
     udp0.assign(udp)
 
     dis_x.append(d_(coord)[0])
     dis_y.append(d_(coord)[1])
+    #plot(d_, mode="displacement")
 
     count += 1
     t += dt
 
 run_time = toc()
 
-if MPI.rank(mpi_comm_world()) == 0:
-    postpro(Lift, Drag, dis_x, dis_y, time, Re, m, U_dof, run_time, mesh_cells, case = 1)
+#if MPI.rank(mpi_comm_world()) == 0:
+    #postpro(Lift, Drag, dis_x, dis_y, time, Re, m, U_dof, run_time, mesh_cells, case = 1)

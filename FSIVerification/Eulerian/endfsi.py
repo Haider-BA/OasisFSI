@@ -234,10 +234,10 @@ def_file = File("./deformation/def.pvd")
 
 #[bc.apply(udp0.vector()) for bc in bcs]
 u0, d0, p0  = udp0.split(True)
-u0.rename("u", "velocity")
-d0.rename("d", "deformation")
-vel_file << u0
-def_file << d0
+#u0.rename("u", "velocity")
+#d0.rename("d", "deformation")
+#vel_file << u0
+#def_file << d0
 
 Re = Um*D/nu_f
 print "SOLVING FOR Re = %f" % Re #0.1 Cylinder diameter
@@ -254,10 +254,10 @@ while t <= T:
                      , udp_res)
 
     u, d, p  = udp.split(True)
-    u.rename("u", "velocity")
-    vel_file << u
-    d.rename("d", "deformation")
-    def_file << d
+    #u.rename("u", "velocity")
+    #vel_file << u
+    #d.rename("d", "deformation")
+    #def_file << d
 
 
     u0, d0, p0  = udp0.split(True)
