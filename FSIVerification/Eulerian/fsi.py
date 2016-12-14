@@ -194,7 +194,7 @@ Solid_momentum = ( J_*rho_s/k*inner(u - u0, psi) \
 Solid_deformation = inner(d - d0 + k*(theta*dot(grad(d), u) + (1-theta)*dot(grad(d0), u0) ) \
                     - k*(theta*u + (1 -theta)*u0 ), gamma)  * dx(2)
 
-F_laplace = inner(grad(d), grad(gamma))*dx(1) + 1./k*inner(d - d0, gamma)*dx(1)
+F_laplace = inner(grad(d), grad(gamma))*dx(1) #+ 1./k*inner(d - d0, gamma)*dx(1)
 
 F = Fluid_momentum + Fluid_continuity \
   + Solid_momentum + Solid_deformation + F_laplace
