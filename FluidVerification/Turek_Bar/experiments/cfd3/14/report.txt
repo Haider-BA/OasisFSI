@@ -2,28 +2,28 @@ CFD3 Turek parameters
 
 Re = 200 
 mesh = turek1.xml
-DOF = 28624
-T = 12
+DOF = 110176
+T = 14
 dt = 0.001
 v_deg = 2
 p_deg = 1
 solver = Newton
 theta_scheme = 0.5
-Discretization = keep2
-Runtime = 2159.125611 
+Discretization = split
+Runtime = 14442.123632 
 
-Max Lift Force = 583.39
+Max Lift Force = 547.237
 
-Min Lift Force = -593.816
+Min Lift Force = -597.742
 
-Max Drag Force = 447.313
+Max Drag Force = 451.824
 
 Min Drag Force = 0
 
-Mean Lift Force = -5.21312
+Mean Lift Force = -25.2525
 
-Mean Drag Force = 223.656
+Mean Drag Force = 225.912
 
-Amplitude Lift Force = 588.603
+Amplitude Lift Force = 572.489
 
-Amplitude Drag Force = 223.656
+Amplitude Drag Force = 225.912

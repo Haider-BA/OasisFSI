@@ -237,7 +237,7 @@ while t <= T:
     u,w,p = uwp.split(True)
     w.vector()[:] *= float(k)
     d0.vector()[:] += w.vector()[:]
-    plot(u)
+    plot(u,mode = "Displacement")
     u0.assign(u)
     if counter%10==0:
         u_file <<u
